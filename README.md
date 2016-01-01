@@ -1,0 +1,1 @@
+This project is designed to create a runtime WinAPI call analyzer (graybox), trained on various programs acting suspiciously or even malware.
