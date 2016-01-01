@@ -1,0 +1,9 @@
+# obviously, it's retarded to keep vmimages in git, so here is a spec file for used vmachines
+1. Linux host: Debian 8.2 (3.16.0-4-amd64)
+    a) INetSIM;
+    b) Configure to be inner network's default gateway;
+    c) Some script to clear and get logs after running;
+2. Windows host: Windows 7 x86 (since we are using Immunity, and it doesn't support x64 executables)
+    a) Immunity Debugger (with custom PyCommands added);
+    b) ApateDNS (to redirect all DNS requests to Linux host);
+    c) Python (obviously, version, supported by Imm - 2.7.1);
