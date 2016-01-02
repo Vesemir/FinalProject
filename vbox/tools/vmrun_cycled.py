@@ -5,10 +5,10 @@ import os
 #1. Start Linux host from clear prepared snapshot + 
 #2. Start Windows host from clear prepared snapshot
 #3. Download sample executable to Windows host #DirectoryRemove works, at least
-#4. Launch sample using Immunity Debugger scripts
-#5. Wait ~ 2 min
-#6. Terminate debugger
-#7. Download Logs from Windows host
+#4. Launch sample using Immunity Debugger scripts # should be working
+#5. Wait ~ 2 min # same
+#6. Terminate debugger # same
+#7. Download Logs from Windows host # implement it as  download ?
 #7*. Download INetSIM logs -> but why ?.... 
 #8. Turn off both hosts. / -2 + 
 ##
@@ -49,7 +49,7 @@ def copyfiletoVM(name='Candy',
     try:
         mysession.DirectoryCreate(dest_dir, 0o777, [CONST.DirectoryCreateFlag_Parents])
     except Exception as e:
-        raise Exception("[-] Couldn't creat directory {}, {}".format(dest_dir, str(e)))
+        raise Exception("[-] Couldn't create directory {}, {}".format(dest_dir, str(e)))
     if response != 1:
         raise Exception("[-] Couldn't wait for session start")
     try:
@@ -70,6 +70,46 @@ def copyfiletoVM(name='Candy',
               )
     except Exception as e:
         print("[-] Couldn't create specified file {} on {} machine, {}".format(
+            dest_file, name, str(e))
+              )
+    finally:
+        session.unlockMachine()
+
+
+def runprocessonVM(name='Candy',
+                   dest_file='C:/Windows/notepad.exe',
+                   arg='',
+                   username='John',
+                   password='123',
+                   timeoutMS=60000):
+    machine = VBOX.findMachine(name)
+    session = vbmanager.openMachineSession(machine)
+    guest = session.console.guest
+    mysession = guest.createSession(username, password, '', session)
+    response = mysession.WaitFor(CONST.GuestSessionWaitForFlag_Start, 0)
+    if response != 1:
+        raise Exception("[-] Couldn't wait for session start")
+    try:
+        process = mysession.ProcessCreate(
+            dest_file,
+            ['', arg], #  array of args, arg[1:] is passed to new process
+            [], #  environment changes - "VAR=VALUE" settting/ "VAR" unsetting
+            [CONST.ProcessCreateFlag_None], # Wait for stdout - doesn't terminate
+            #until all data is read, hidden - should be invisible to OS
+            timeoutMS)
+        process.WaitFor(CONST.ProcessWaitForFlag_Start, 0)
+        print('[+] Succesfully started {} with PID {}'.format(
+            dest_file, process.PID)
+              )
+        res = process.WaitFor(CONST.ProcessWaitForFlag_Terminate, timeoutMS)
+        if res not in (CONST.ProcessWaitResult_Terminate,
+                       CONST.ProcessWaitResult_Timeout):
+            raise Exception("[-] Unknown status {}".format(res))
+        print('[+] Succesfully terminated process {}'.format(
+            dest_file)
+              )
+    except Exception as e:
+        print("[-] Couldn't start specified file {} on {} machine, {}".format(
             dest_file, name, str(e))
               )
     finally:
