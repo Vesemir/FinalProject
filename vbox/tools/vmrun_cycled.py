@@ -1,4 +1,5 @@
 import vboxapi
+import os
 #this one should complete a routine:
 ## Take a sample from samples/ directory
 #1. Start Linux host from clear prepared snapshot + 
@@ -33,16 +34,26 @@ def startVM(name='INetSim', style='headless', snapshot='Working INetSIM'):
     print('[+] Machine {} started.'.format(name))
 
 
-def copyfiletoVM(name='Candy', src_file='Q:\compilers\decompilation_thesis.pdf',
-                 dest_file='C:/fuu/decompile.pdf'):
+def copyfiletoVM(name='Candy',
+                 src_file='Q:\compilers\decompilation_thesis.pdf',
+                 dest_dir='C:/fuu/',
+                 username='John',
+                 password='123'):
+    filename = os.path.basename(src_file)
+    dest_file = os.path.join(dest_dir, filename)
     machine = VBOX.findMachine(name)
     session = vbmanager.openMachineSession(machine)
     guest = session.console.guest
-    mysession = guest.createSession('John', '123', '', session)
+    mysession = guest.createSession(username, password, '', session)
     response = mysession.WaitFor(CONST.GuestSessionWaitForFlag_Start, 0)
+    try:
+        mysession.DirectoryCreate(dest_dir, 0o777, [CONST.DirectoryCreateFlag_Parents])
+    except Exception as e:
+        raise Exception("[-] Couldn't creat directory {}, {}".format(dest_dir, str(e)))
     if response != 1:
         raise Exception("[-] Couldn't wait for session start")
-    try:        
+    try:
+        
         pFile = mysession.FileOpen(
             dest_file,
             CONST.FileAccessMode_ReadWrite,
