@@ -14,6 +14,9 @@ import glob
 #8. Turn off both hosts. / -2 + 
 ##
 
+CHUNKSIZE = 4096
+
+
 vbmanager = vboxapi.VirtualBoxManager(None, None)
 CONST = vbmanager.constants
 VBOX = vbmanager.vbox
@@ -69,10 +72,10 @@ def copyfiletoVM(name='Candy',
             CONST.FileOpenAction_CreateOrReplace,
             0o777)
         with open(src_file, 'rb') as inp:
-            chunk = inp.read(4096)
+            chunk = inp.read(CHUNKSIZE)
             while chunk:
                 pFile.write(chunk, 0) #  0 for timeout
-                chunk = inp.read(4096)
+                chunk = inp.read(CHUNKSIZE)
         pFile.close()
         print('[+] Succesfully copied from host {} to {}\' {}'.format(
             src_file, name, dest_file)
@@ -80,6 +83,47 @@ def copyfiletoVM(name='Candy',
     except Exception as e:
         print("[-] Couldn't create specified file {} on {} machine, {}".format(
             dest_file, name, str(e))
+              )
+    finally:
+        mysession.close()
+        session.unlockMachine()
+
+
+def readfilefromVM(name='Candy',
+                   src_file='C:/fuu/log.txt',
+                   dest_dir='Q:/compilers/',
+                   username='John',
+                   password='123'):
+    filename = os.path.basename(src_file)
+    dest_file = os.path.join(dest_dir, filename)
+    machine = VBOX.findMachine(name)
+    session = vbmanager.openMachineSession(machine)
+    guest = session.console.guest
+    mysession = guest.createSession(username, password, '', session)
+    response = mysession.WaitFor(CONST.GuestSessionWaitForFlag_Start, 0)
+    try:
+        pFile = mysession.FileOpen(
+            src_file,
+            CONST.FileAccessMode_ReadWrite,
+            CONST.FileOpenAction_OpenExisting,
+            0o777)
+        sizeleft = pFile.seek(0, CONST.FileSeekOrigin_End)
+        pFile.seek(0, CONST.FileSeekOrigin_Begin)
+        with open(dest_file, 'wb') as outp:
+            chunk = pFile.read(CHUNKSIZE, 0).tobytes() #  0 for timeout
+            outp.write(chunk)
+            sizeleft -= CHUNKSIZE
+            while sizeleft > 0:
+                chunk = pFile.read(CHUNKSIZE, 0)
+                outp.write(chunk)
+                sizeleft -= CHUNKSIZE
+        pFile.close()
+        print('[+] Succesfully copied to host {} from {}\' {}'.format(
+            dest_file, name, src_file)
+              )
+    except Exception as e:
+        print("[-] Couldn't read specified file {} on {} machine, {}".format(
+            src_file, name, str(e))
               )
     finally:
         mysession.close()
