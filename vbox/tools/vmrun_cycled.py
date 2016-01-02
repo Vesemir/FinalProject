@@ -1,5 +1,6 @@
 import vboxapi
 import os
+import glob
 #this one should complete a routine:
 ## Take a sample from samples/ directory
 #1. Start Linux host from clear prepared snapshot + 
@@ -17,6 +18,13 @@ vbmanager = vboxapi.VirtualBoxManager(None, None)
 CONST = vbmanager.constants
 VBOX = vbmanager.vbox
 REMOTE = vbmanager.remote
+SAMPLE_PATH = os.path.join(
+    os.path.dirname(
+        os.path.abspath(__name__)
+        ),
+    os.pardir,
+    'samples')
+assert os.path.isdir(SAMPLE_PATH)
 
 def startVM(name='INetSim', style='headless', snapshot='Working INetSIM'):
     machine = VBOX.findMachine(name)
@@ -46,14 +54,15 @@ def copyfiletoVM(name='Candy',
     guest = session.console.guest
     mysession = guest.createSession(username, password, '', session)
     response = mysession.WaitFor(CONST.GuestSessionWaitForFlag_Start, 0)
-    try:
-        mysession.DirectoryCreate(dest_dir, 0o777, [CONST.DirectoryCreateFlag_Parents])
-    except Exception as e:
-        raise Exception("[-] Couldn't create directory {}, {}".format(dest_dir, str(e)))
     if response != 1:
         raise Exception("[-] Couldn't wait for session start")
     try:
-        
+        mysession.DirectoryCreate(dest_dir, 0o777, [CONST.DirectoryCreateFlag_Parents])
+    except Exception as e:
+        mysession.close()
+        session.unlockMachine()
+        raise Exception("[-] Couldn't create directory {}, {}".format(dest_dir, str(e)))
+    try:
         pFile = mysession.FileOpen(
             dest_file,
             CONST.FileAccessMode_ReadWrite,
@@ -73,6 +82,7 @@ def copyfiletoVM(name='Candy',
             dest_file, name, str(e))
               )
     finally:
+        mysession.close()
         session.unlockMachine()
 
 
@@ -87,9 +97,9 @@ def runprocessonVM(name='Candy',
     guest = session.console.guest
     mysession = guest.createSession(username, password, '', session)
     response = mysession.WaitFor(CONST.GuestSessionWaitForFlag_Start, 0)
-    if response != 1:
-        raise Exception("[-] Couldn't wait for session start")
     try:
+        if response != 1:
+            raise Exception("[-] Couldn't wait for session start")
         process = mysession.ProcessCreate(
             dest_file,
             ['', arg], #  array of args, arg[1:] is passed to new process
@@ -113,10 +123,12 @@ def runprocessonVM(name='Candy',
             dest_file, name, str(e))
               )
     finally:
+        mysession.close()
         session.unlockMachine()
               
                 
 def freezeVM(name='INetSim'):
+    machine = VBOX.findMachine(name)
     session = vbmanager.getSessionObject(VBOX)
     machine.lockMachine(session, CONST.LockType_Shared)
     if session.state != CONST.SessionState_Locked:
@@ -129,3 +141,14 @@ def freezeVM(name='INetSim'):
     progress = console.powerDown()
     progress.waitForCompletion(-1)
     print('[+] Machine {} stopped.'.format(name))
+
+
+def run_cycled(work_dir='C:/workdir'):
+    for eachsample in glob.glob(os.path.join(SAMPLE_PATH, '*.exe')):
+        startVM(name='Candy', style='gui', snapshot='WDKitInstalled')
+        copyfiletoVM(src_file=eachsample, dest_dir=work_dir)
+        runprocessonVM(dest_file=os.path.join(
+            work_dir, os.path.basename(eachsample)
+            ),
+            timeoutMS=120000)
+        freezeVM(name='Candy')
