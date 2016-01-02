@@ -145,10 +145,12 @@ def freezeVM(name='INetSim'):
 
 def run_cycled(work_dir='C:/workdir'):
     for eachsample in glob.glob(os.path.join(SAMPLE_PATH, '*.exe')):
-        startVM(name='Candy', style='gui', snapshot='WDKitInstalled')
+        startVM()
+        startVM(name='Candy', style='headless', snapshot='Ready')
         copyfiletoVM(src_file=eachsample, dest_dir=work_dir)
         runprocessonVM(dest_file=os.path.join(
             work_dir, os.path.basename(eachsample)
             ),
             timeoutMS=120000)
+        freezeVM()
         freezeVM(name='Candy')
