@@ -2,15 +2,15 @@ import vboxapi
 import os
 import glob
 #this one should complete a routine:
-## Take a sample from samples/ directory
+## Take a sample from samples/ directory +
 #1. Start Linux host from clear prepared snapshot + 
-#2. Start Windows host from clear prepared snapshot
-#3. Download sample executable to Windows host #DirectoryRemove works, at least
+#2. Start Windows host from clear prepared snapshot +
+#3. Download sample executable to Windows host # +
 #4. Launch sample using Immunity Debugger scripts # should be working
-#5. Wait ~ 2 min # same
-#6. Terminate debugger # same
-#7. Download Logs from Windows host # implement it as  download ?
-#7*. Download INetSIM logs -> but why ?.... 
+#5. Wait ~ 2 min # +
+#6. Terminate debugger # +
+#7. Download Logs from Windows host # implemented using FileOpen
+#7*. Download INetSIM logs -> but why ?.... # should check if 7 works for Linux
 #8. Turn off both hosts. / -2 + 
 ##
 
@@ -21,13 +21,12 @@ vbmanager = vboxapi.VirtualBoxManager(None, None)
 CONST = vbmanager.constants
 VBOX = vbmanager.vbox
 REMOTE = vbmanager.remote
-SAMPLE_PATH = os.path.join(
-    os.path.dirname(
-        os.path.abspath(__name__)
-        ),
-    os.pardir,
-    'samples')
+CURDIR = os.path.dirname(os.path.abspath(__name__))
+SAMPLE_PATH = os.path.join(CURDIR, os.pardir, 'samples')
+LOGS_PATH = os.path.join(CURDIR, os.pardir, 'logs')
 assert os.path.isdir(SAMPLE_PATH)
+assert os.path.isdir(LOGS_PATH)
+
 
 def startVM(name='INetSim', style='headless', snapshot='Working INetSIM'):
     machine = VBOX.findMachine(name)
@@ -196,5 +195,6 @@ def run_cycled(work_dir='C:/workdir'):
             work_dir, os.path.basename(eachsample)
             ),
             timeoutMS=120000)
+        #  readfilefromVM(src_file='C:/workdir/', dest_dir=LOGS_PATH)
         freezeVM()
         freezeVM(name='Candy')
