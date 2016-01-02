@@ -1,4 +1,5 @@
 # obviously, it's retarded to keep vmimages in git, so here is a spec file for used vmachines
+VirtualBox : v 5.10 (obviously bugged, but it seems possible to found workaround for every problem).
 1. Linux host: Debian 8.2 (3.16.0-4-amd64)
     a) INetSIM;
     b) Configure to be inner network's default gateway;
