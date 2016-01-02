@@ -1,0 +1,11 @@
+#workingfolder:
+!mona config -set workingfolder Q:/somewhere/at/the/sea# %i for pid %p for process name
+#excludes:
+!mona config -set excluded_modules "module1.dll,module2.dll"
+#add exclude:
+!mona config -add excluded_moduels "module3.dll"
+#limit module output:
+-m "gtk*,*win*,shell32.dll"
+#breakpoints: ?????IDUNNO??????
+!mona bf -t ADD/DEL -f import -s * -m notepad.exe # -s sets filter, -f for import /export
+!mona bf -t DEL import -s * #else it crashes for the sake of some entity
