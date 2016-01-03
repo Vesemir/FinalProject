@@ -4,17 +4,15 @@ import random
 import re
 import os
 
-
+LOGS_DIR = "Q:/logs/"
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 FUNCTION = re.compile(r'At 0x[0-9a-f]{8} in (?P<libname>\w+) \(base \+ 0x[0-9a-f]{8}\) : (?P<funcaddr>0x[0-9a-f]{8}) \(ptr to (?P<funcname>[a-zA-Z0-9.]+)\)')
-
-PATH = r"Q:\Active\Viruses\logs\mspaint\iatsearch.txt"
 
 valid = re.compile(r'(?P<funcname>\w+)\n(?P<funcdesc>[A-Z].+?\.)\n', re.DOTALL)
 
 
-def filter_apis():
-    with open('API_parsed.txt', 'w') as outp, open(os.path.join(CURDIR,'API_USAGE.txt')) as inp:
+def important_functions():
+    with open(os.path.join(CURDIR, 'API_USAGE.txt')) as inp:
         wholedict = dict()
         whole = inp.read()
         for match in valid.finditer(whole):
@@ -34,19 +32,14 @@ def function_dict(path):
     return f_dict
 
 
-def important_functions():
-    return filter_apis()
-
-F_DICT = function_dict(PATH)
-
-
 class CallGetter(LogBpHook):
-    def __init__( self ):
+    def __init__(self, func_dict, logspath):
         self.imm = Debugger()
-        self.logfile = "Q:\Active\Viruses\logs\logfile.log"
+        self.fdict = func_dict
+        self.logfile = os.path.join(logspath, 'apicalls.log')
         LogBpHook.__init__(self)
         
-    def run( self, regs ):
+    def run(self, regs):
         """
         We use the following offsets from the ESP register
         to trap the arguments to DeviceIoControl:
@@ -65,7 +58,7 @@ class CallGetter(LogBpHook):
         arg1 = self.imm.readLong(regs['ESP'] + 4)
         # read out the InBufferSize
         
-        if 'getprocaddress' in F_DICT[pos]:
+        if 'getprocaddress' in self.fdict[pos]:
             p_funcname = self.imm.readLong(regs['ESP'] + 8)
             more = self.imm.readMemory(p_funcname, 30)
         # now we find the buffer in memory to mutate
@@ -80,22 +73,26 @@ class CallGetter(LogBpHook):
     
     def save_test_case(self, pos, arg1, more):
         message = "*****\n"
-        message += "IN : %s\n" % F_DICT[pos]
+        message += "IN : %s\n" % self.fdict[pos]
         if more:
             message += "LOOKING UP: %s\n" % more.split('\x00')[0]
         message += "ARG1 : 0x%08x\n" % arg1
         message += "*****\n\n"
-        fd = open( self.logfile, "a" )
-        fd.write( message )
-        fd.close()
+        with open(self.logfile, "a") as fd:
+            fd.write(message)
+        
         
 def main(args):
+    logspath = args[0]
+    path = os.path.join(logspath, "iatsearch.txt")
+    functions_dict = function_dict(path)
     imm = Debugger()
-    functions_hooker = CallGetter()
+    functions_hooker = CallGetter(functions_dict, logspath)
     imp_func = important_functions()
     dump = ''
-    for address, funcname in F_DICT.items():
-        if funcname.split('.')[1] in imp_func:
-            #dump += funcname.split('.')[1]
-            functions_hooker.add( "%08x" % address, address)
+    for address, funcname in functions_dict.items():
+        if 'CmdLine' in funcname:
+            print(address, funcname)
+        #if funcname.split('.')[1] in imp_func:
+        functions_hooker.add( "%08x" % address, address)
     return "[*] API calls hooker enabled!"

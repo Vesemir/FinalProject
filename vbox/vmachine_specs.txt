@@ -8,3 +8,4 @@ VirtualBox : v 5.10 (obviously bugged, but it seems possible to found workaround
     a) Immunity Debugger (with custom PyCommands added);
     b) ApateDNS (to redirect all DNS requests to Linux host);
     c) Python (obviously, version, supported by Imm - 2.7.1);
+    d) Installed pywin32
