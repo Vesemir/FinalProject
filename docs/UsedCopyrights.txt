@@ -1,0 +1,6 @@
+Python 2.7.1 (Required for Immunity), 3.4: Copyright ©2001-2016.  Python Software Foundation
+Immunity Debugger: Immunity Inc., 2009
+mona: Copyright (c) 2013, Corelan GCV
+VirtualBox: Copyright © 2015 Oracle Corporation and/or its affiliates. All rights reserved
+INetSim: developed by Thomas Hungenberg and Matthias Eckert, GNU GPL v 3.0; 
+MadApateDNS: created by Steve Davis, Copyright © 2016 FireEye
