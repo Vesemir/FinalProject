@@ -2,9 +2,12 @@ from immlib import LogBpHook, Debugger
 import struct
 import random
 import re
+import sys
 import os
 
-LOGS_DIR = "Q:/logs/"
+sys.path.append(os.path.dirname(__file__))
+from settings import LOGS_DIR
+
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 FUNCTION = re.compile(r'At 0x[0-9a-f]{8} in (?P<libname>\w+) \(base \+ 0x[0-9a-f]{8}\) : (?P<funcaddr>0x[0-9a-f]{8}) \(ptr to (?P<funcname>[a-zA-Z0-9.]+)\)')
 

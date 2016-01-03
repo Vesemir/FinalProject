@@ -1,9 +1,13 @@
 import os
+import sys
 import ctypes
 import win32com.client
 import subprocess
 import time
 
+sys.path.append(os.path.dirname(__file__))
+
+from settings import LOGS_DIR
 ##
 #python getapilog.py -> should do following things:
 #C:/wherever_lies_immunity/ImmunityDebugger.exe <path_to_debuggee>->
@@ -23,7 +27,6 @@ import time
 IMMUNITY_PATH = r"C:\Program Files (x86)\Immunity Inc\Immunity Debugger\ImmunityDebugger.exe"
 SAMPLE_PATH = r"C:\Program Files (x86)\Immunity Inc\Immunity Debugger\loaddll.exe"
 ENGLISH_LAYOUT = b'00000409'
-LOGS_DIR = "Q:/logs/"
 
 
 def check_layout(shell):
