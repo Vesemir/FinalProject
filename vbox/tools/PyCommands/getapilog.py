@@ -2,12 +2,14 @@ import os
 import sys
 import ctypes
 import win32com.client
+import win32gui
+import win32process
 import subprocess
 import time
 
-sys.path.append(os.path.dirname(__file__))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from settings import LOGS_DIR
+from settings import LOGS_DIR, IMMUNITY_PATH
 ##
 #python getapilog.py -> should do following things:
 #C:/wherever_lies_immunity/ImmunityDebugger.exe <path_to_debuggee>->
@@ -24,8 +26,6 @@ from settings import LOGS_DIR
 #assert buff.value == b'00000409'
 ##
 
-IMMUNITY_PATH = r"C:\Program Files (x86)\Immunity Inc\Immunity Debugger\ImmunityDebugger.exe"
-SAMPLE_PATH = r"C:\Program Files (x86)\Immunity Inc\Immunity Debugger\loaddll.exe"
 ENGLISH_LAYOUT = b'00000409'
 
 
@@ -40,27 +40,43 @@ def check_layout(shell):
         user32.GetKeyboardLayoutNameA(buff)
         assert buff.value == ENGLISH_LAYOUT, "[-] Couldn't change layout"
     print("[+] Done.")          
-        
 
-def rundebuggee():
+
+def focusdebugger(pid):
+    def callback(hwnd, hwnds):
+        if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
+            _, found_pid = win32process.GetWindowThreadProcessId(hwnd)
+            if found_pid == pid:
+                hwnds.append(hwnd)
+        return True
+    hwnds = []
+    win32gui.EnumWindows(callback, hwnds)
+    win32gui.SetForegroundWindow(hwnds[0])
+
+
+def rundebuggee(sample):
     print("[!] Running debuggee ..")
-    subprocess.Popen([IMMUNITY_PATH, SAMPLE_PATH])
-    time.sleep(3)
+    dbg = subprocess.Popen([IMMUNITY_PATH, sample])
+    time.sleep(6)
+    #focusdebugger(dbg.pid) doesn't work in vbox for some reason
     print("[+] Done.")
 
 
-def executePyCommands():
-    sample_name = os.path.basename(SAMPLE_PATH)
+def executePyCommands(sample):
+    sample_name = os.path.basename(sample)
     logpath = os.path.join(LOGS_DIR, os.path.splitext(sample_name)[0])
     
     def PyCommand(string):
         SHELL.SendKeys(string + '~')
-        time.sleep(5)
+        time.sleep(4)
         
     SHELL = win32com.client.Dispatch("WScript.Shell")
-    SHELL.AppActivate("Immunity Debugger -")
+    time.sleep(5)
+    SHELL.SendKeys("%{Tab}")
+    SHELL.AppActivate("Immunity Debugger")
     SHELL.SendKeys("%{F1}")
-    check_layout(SHELL)
+    #check_layout(SHELL)
+    time.sleep(5)
     PyCommand("!mona config -set workingfolder " + LOGS_DIR + "{%}p")
     SHELL.SendKeys("%{F1}")
     PyCommand("!mona getiat -s kernel32.*")
@@ -74,8 +90,12 @@ def executePyCommands():
     
 
 def main():
-    rundebuggee()
-    executePyCommands()
+    if not len(sys.argv) > 1:
+        print("%usage: python getapilog.py <sample_file>")
+        sys.exit(0)
+    sample = sys.argv[1]
+    rundebuggee(sample)
+    executePyCommands(sample)
     
 
 if __name__ == '__main__':

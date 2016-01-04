@@ -13,17 +13,26 @@ import glob
 #7*. Download INetSIM logs -> but why ?.... # should check if 7 works for Linux
 #8. Turn off both hosts. / -2 + 
 ##
-
+from PyCommands.settings import LOGS_DIR as VMLOGS_DIR
+from PyCommands.settings import IMMUNITY_PATH
 CHUNKSIZE = 4096
 
+CURDIR = os.path.dirname(os.path.abspath(__name__))
+PYTHON = r'C:/Python27/python.exe'
+IMMUNITY_DIR = os.path.join(os.path.dirname(IMMUNITY_PATH), 'PyCommands')
+MONA = os.path.join(IMMUNITY_DIR, 'mona.py')
+SAMPLE_PATH = os.path.join(CURDIR, os.pardir, 'samples')
+LOGS_PATH = os.path.join(CURDIR, os.pardir, 'logs')
+KIT_DIR = 'PyCommands'
+KIT = ('getapilog.py', 'logginghook.py', 'settings.py', 'API_USAGE.txt')
+GETAPI = 'getapilog.py'
 
 vbmanager = vboxapi.VirtualBoxManager(None, None)
 CONST = vbmanager.constants
 VBOX = vbmanager.vbox
 REMOTE = vbmanager.remote
-CURDIR = os.path.dirname(os.path.abspath(__name__))
-SAMPLE_PATH = os.path.join(CURDIR, os.pardir, 'samples')
-LOGS_PATH = os.path.join(CURDIR, os.pardir, 'logs')
+
+
 assert os.path.isdir(SAMPLE_PATH)
 assert os.path.isdir(LOGS_PATH)
 
@@ -42,6 +51,19 @@ def startVM(name='INetSim', style='headless', snapshot='Working INetSIM'):
     progress.waitForCompletion(-1)
     session.unlockMachine()
     print('[+] Machine {} started.'.format(name))
+
+
+def copytoolstoVM(dest_dir='C:/foo'):
+    print('[!] Copying toolkit for debuggee...')
+    for tool in KIT:
+        toolpath = os.path.join(CURDIR, KIT_DIR, tool)
+        #assert False, (toolpath, dest_dir)
+        copyfiletoVM(src_file=toolpath, dest_dir=IMMUNITY_DIR)
+        if any(val in toolpath for val in ('settings', 'getapilog')):
+            copyfiletoVM(src_file=toolpath, dest_dir=dest_dir)
+        
+        
+    print('[+] Done.')
 
 
 def copyfiletoVM(name='Candy',
@@ -117,7 +139,7 @@ def readfilefromVM(name='Candy',
                 outp.write(chunk)
                 sizeleft -= CHUNKSIZE
         pFile.close()
-        print('[+] Succesfully copied to host {} from {}\' {}'.format(
+        print('[+] Succesfully copied to host {} from {}\'s {}'.format(
             dest_file, name, src_file)
               )
     except Exception as e:
@@ -131,22 +153,28 @@ def readfilefromVM(name='Candy',
 
 def runprocessonVM(name='Candy',
                    dest_file='C:/Windows/notepad.exe',
-                   arg='',
+                   args='',
                    username='John',
                    password='123',
+                   work_dir='',
                    timeoutMS=60000):
+    argarray = ['']
+    if args != '':
+        argarray = ['', args['command'], args['file']]
+    print("[!] Running command :  {} {}".format(dest_file, ' '.join(argarray)))
     machine = VBOX.findMachine(name)
     session = vbmanager.openMachineSession(machine)
     guest = session.console.guest
     mysession = guest.createSession(username, password, '', session)
+    print("[!] Protocol version of VBService is {}".format(mysession.protocolVersion))
     response = mysession.WaitFor(CONST.GuestSessionWaitForFlag_Start, 0)
     try:
         if response != 1:
             raise Exception("[-] Couldn't wait for session start")
         process = mysession.ProcessCreate(
             dest_file,
-            ['', arg], #  array of args, arg[1:] is passed to new process
-            [], #  environment changes - "VAR=VALUE" settting/ "VAR" unsetting
+            argarray, #  array of args, arg[1:] is passed to new process
+            ["PATH=%s" % work_dir], #  environment changes - "VAR=VALUE" settting/ "VAR" unsetting
             [CONST.ProcessCreateFlag_None], # Wait for stdout - doesn't terminate
             #until all data is read, hidden - should be invisible to OS
             timeoutMS)
@@ -188,13 +216,24 @@ def freezeVM(name='INetSim'):
 
 def run_cycled(work_dir='C:/workdir'):
     for eachsample in glob.glob(os.path.join(SAMPLE_PATH, '*.exe')):
+        proc_name = os.path.basename(eachsample)
         startVM()
-        startVM(name='Candy', style='headless', snapshot='Ready')
+        startVM(name='Candy', style='headless', snapshot="butwhy")
+        copytoolstoVM(dest_dir=work_dir)
         copyfiletoVM(src_file=eachsample, dest_dir=work_dir)
-        runprocessonVM(dest_file=os.path.join(
-            work_dir, os.path.basename(eachsample)
-            ),
-            timeoutMS=120000)
-        #  readfilefromVM(src_file='C:/workdir/', dest_dir=LOGS_PATH)
+        getapi = os.path.join(work_dir, GETAPI)
+        runprocessonVM(dest_file=PYTHON,
+                       work_dir=work_dir,
+                       args=dict(
+                           command=getapi,
+                           file=os.path.join(
+                               work_dir, proc_name
+                               )
+                           ),
+                       timeoutMS=120000)
+        cur_log = os.path.join(VMLOGS_DIR,
+                               os.path.splitext(proc_name)[0],
+                               'apicalls.log')
+        readfilefromVM(src_file=cur_log, dest_dir=LOGS_PATH)
         freezeVM()
-        freezeVM(name='Candy')
+        #freezeVM(name='Candy')
