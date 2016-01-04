@@ -77,6 +77,7 @@ def executePyCommands(sample):
     SHELL.SendKeys("%{F1}")
     #check_layout(SHELL)
     time.sleep(5)
+    PyCommand("!hidedebug All_Debug")
     PyCommand("!mona config -set workingfolder " + LOGS_DIR + "{%}p")
     SHELL.SendKeys("%{F1}")
     PyCommand("!mona getiat -s kernel32.*")

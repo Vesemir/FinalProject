@@ -230,10 +230,11 @@ def run_cycled(work_dir='C:/workdir'):
                                work_dir, proc_name
                                )
                            ),
-                       timeoutMS=120000)
+                       timeoutMS=180000)
         cur_log = os.path.join(VMLOGS_DIR,
                                os.path.splitext(proc_name)[0],
                                'apicalls.log')
-        readfilefromVM(src_file=cur_log, dest_dir=LOGS_PATH)
+        sample_log = os.path.join(LOGS_PATH, proc_name)
+        readfilefromVM(src_file=cur_log, dest_dir=sample_log)
         freezeVM()
-        #freezeVM(name='Candy')
+        freezeVM(name='Candy')
