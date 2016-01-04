@@ -236,7 +236,8 @@ def run_cycled(work_dir='C:/workdir'):
                                'apicalls.log')
         sample_log = os.path.join(LOGS_PATH,
                                   os.path.splitext(proc_name)[0])
-        os.makedirs(sample_log)
+        if not os.path.isdir(sample_log):
+            os.makedirs(sample_log)
         readfilefromVM(src_file=cur_log, dest_dir=sample_log)
         freezeVM()
         freezeVM(name='Candy')
