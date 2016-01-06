@@ -68,7 +68,7 @@ def executePyCommands(sample):
     
     def PyCommand(string):
         SHELL.SendKeys(string + '~')
-        time.sleep(4)
+        #time.sleep(4)
         
     SHELL = win32com.client.Dispatch("WScript.Shell")
     time.sleep(5)
