@@ -76,7 +76,6 @@ def executePyCommands(sample):
     SHELL.AppActivate("Immunity Debugger")
     SHELL.SendKeys("%{F1}")
     #check_layout(SHELL)
-    time.sleep(5)
     PyCommand("!hidedebug All_Debug")
     PyCommand("!mona config -set workingfolder " + LOGS_DIR + "{%}p")
     SHELL.SendKeys("%{F1}")
@@ -85,6 +84,7 @@ def executePyCommands(sample):
     PyCommand("!mona bf -t ADD -f import -s kernel32.*")
     SHELL.SendKeys("%{F1}")
     PyCommand("!logginghook %s" % logpath)
+    SHELL.SendKeys("{F9}")
     for _ in range(100):
         time.sleep(1)
         SHELL.SendKeys("{F9}")

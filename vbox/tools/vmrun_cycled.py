@@ -13,15 +13,16 @@ import glob
 #7*. Download INetSIM logs -> but why ?.... # should check if 7 works for Linux
 #8. Turn off both hosts. / -2 + 
 ##
+from drawer import draw_samples
 from PyCommands.settings import LOGS_DIR as VMLOGS_DIR
 from PyCommands.settings import IMMUNITY_PATH
+from PyCommands.settings import SAMPLE_PATH
 CHUNKSIZE = 4096
 
 CURDIR = os.path.dirname(os.path.abspath(__name__))
 PYTHON = r'C:/Python27/python.exe'
 IMMUNITY_DIR = os.path.join(os.path.dirname(IMMUNITY_PATH), 'PyCommands')
 MONA = os.path.join(IMMUNITY_DIR, 'mona.py')
-SAMPLE_PATH = os.path.join(CURDIR, os.pardir, 'samples')
 LOGS_PATH = os.path.join(CURDIR, os.pardir, 'logs')
 KIT_DIR = 'PyCommands'
 KIT = ('getapilog.py', 'logginghook.py', 'settings.py', 'API_USAGE.txt')
@@ -215,10 +216,11 @@ def freezeVM(name='INetSim'):
 
 
 def run_cycled(work_dir='C:/workdir'):
+    #draw_samples()
     for eachsample in glob.glob(os.path.join(SAMPLE_PATH, '*.exe')):
         proc_name = os.path.basename(eachsample)
         startVM()
-        startVM(name='Candy', style='headless', snapshot="butwhy")
+        startVM(name='Candy', style='headless', snapshot="modded")
         copytoolstoVM(dest_dir=work_dir)
         copyfiletoVM(src_file=eachsample, dest_dir=work_dir)
         getapi = os.path.join(work_dir, GETAPI)
