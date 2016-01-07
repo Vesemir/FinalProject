@@ -25,7 +25,12 @@ IMMUNITY_DIR = os.path.join(os.path.dirname(IMMUNITY_PATH), 'PyCommands')
 MONA = os.path.join(IMMUNITY_DIR, 'mona.py')
 LOGS_PATH = os.path.join(CURDIR, os.pardir, 'logs')
 KIT_DIR = 'PyCommands'
-KIT = ('getapilog.py', 'logginghook.py', 'settings.py', 'API_USAGE.txt')
+KIT = ('getapilog.py',
+       'logginghook.py',
+       'settings.py',
+       'API_USAGE.txt',
+       'zipper.py',
+       )
 GETAPI = 'getapilog.py'
 
 vbmanager = vboxapi.VirtualBoxManager(None, None)
@@ -60,7 +65,7 @@ def copytoolstoVM(dest_dir='C:/foo'):
         toolpath = os.path.join(CURDIR, KIT_DIR, tool)
         #assert False, (toolpath, dest_dir)
         copyfiletoVM(src_file=toolpath, dest_dir=IMMUNITY_DIR)
-        if any(val in toolpath for val in ('settings', 'getapilog')):
+        if any(val in toolpath for val in ('settings', 'getapilog', 'zipper')):
             copyfiletoVM(src_file=toolpath, dest_dir=dest_dir)
         
         
@@ -217,7 +222,7 @@ def freezeVM(name='INetSim'):
 
 def run_cycled(work_dir='C:/workdir'):
     #draw_samples()
-    for eachsample in glob.glob(os.path.join(SAMPLE_PATH, '*.exe')):
+    for eachsample in glob.glob(os.path.join(SAMPLE_PATH, '*.zip')):
         proc_name = os.path.basename(eachsample)
         startVM()
         startVM(name='Candy', style='headless', snapshot="modded")
