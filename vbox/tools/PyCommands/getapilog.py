@@ -9,6 +9,7 @@ import time
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from zipper import zipout
 from settings import LOGS_DIR, IMMUNITY_PATH
 ##
 #python getapilog.py -> should do following things:
@@ -27,6 +28,12 @@ from settings import LOGS_DIR, IMMUNITY_PATH
 ##
 
 ENGLISH_LAYOUT = b'00000409'
+
+
+def unzip_sample(samplepath):
+    zipout(samplepath)
+    realname = os.path.splitext(samplepath)[0]
+    os.rename(realname, realname + '.exe')
 
 
 def check_layout(shell):
@@ -77,6 +84,8 @@ def executePyCommands(sample):
     SHELL.SendKeys("%{F1}")
     #check_layout(SHELL)
     PyCommand("!hidedebug All_Debug")
+    PyCommand("!hidedebug All_Process")
+    PyCommand("!hidedebug All_Window")
     PyCommand("!mona config -set workingfolder " + LOGS_DIR + "{%}p")
     SHELL.SendKeys("%{F1}")
     PyCommand("!mona getiat -s kernel32.*")
@@ -95,8 +104,10 @@ def main():
         print("%usage: python getapilog.py <sample_file>")
         sys.exit(0)
     sample = sys.argv[1]
-    rundebuggee(sample)
-    executePyCommands(sample)
+    unzip_sample(sample)
+    sample_exe = os.path.splitext(sample)[0] + '.exe'
+    rundebuggee(sample_exe)
+    executePyCommands(sample_exe)
     
 
 if __name__ == '__main__':
