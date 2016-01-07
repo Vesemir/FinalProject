@@ -2,7 +2,6 @@
 1. InetSim default files change.
 2. Anti-VM detection tool add to Image and reqs. ( force size of C:/ to >50 GB ?)
 3. Anti-debug stuff add to imm commands
-4. Draw 100 samples +
 5. Classify api by libs/ args.
 5*. Choose what to trace -> look apitrace.py
 6. Dict for those classified apis to fit in Pandas dframe
