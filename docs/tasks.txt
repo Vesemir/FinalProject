@@ -1,9 +1,7 @@
-0. SAFETY - maybe zip samples, eventually, you are gonna screw up and launch some of them on host.
 1. InetSim default files change.
 2. Anti-VM detection tool add to Image and reqs. ( force size of C:/ to >50 GB ?)
-3. Anti-debug stuff add to imm commands
 5. Classify api by libs/ args.
-5*. Choose what to trace -> look apitrace.py
+5*. Choose what to trace -> look apitrace.py # kernel32 tracing supplemented by user32, since some viruses obviously don't use kernel32
 6. Dict for those classified apis to fit in Pandas dframe
 7. Following new processes/threads ?
 8. Look at UPX'ed run results -> investigate further (seems, Imm founds out it's packed).

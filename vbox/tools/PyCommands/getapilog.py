@@ -64,7 +64,7 @@ def focusdebugger(pid):
 def rundebuggee(sample):
     print("[!] Running debuggee ..")
     dbg = subprocess.Popen([IMMUNITY_PATH, sample])
-    time.sleep(6)
+    time.sleep(12)
     #focusdebugger(dbg.pid) doesn't work in vbox for some reason
     print("[+] Done.")
 
@@ -75,10 +75,8 @@ def executePyCommands(sample):
     
     def PyCommand(string):
         SHELL.SendKeys(string + '~')
-        #time.sleep(4)
-        
+                   
     SHELL = win32com.client.Dispatch("WScript.Shell")
-    time.sleep(5)
     SHELL.SendKeys("%{Tab}")
     SHELL.AppActivate("Immunity Debugger")
     SHELL.SendKeys("%{F1}")
@@ -87,13 +85,9 @@ def executePyCommands(sample):
     PyCommand("!hidedebug All_Process")
     PyCommand("!hidedebug All_Window")
     PyCommand("!mona config -set workingfolder " + LOGS_DIR + "{%}p")
-    SHELL.SendKeys("%{F1}")
-    PyCommand("!mona getiat -s kernel32.*")
-    SHELL.SendKeys("%{F1}")
-    PyCommand("!mona bf -t ADD -f import -s kernel32.*")
-    SHELL.SendKeys("%{F1}")
+    PyCommand("!mona getiat -s kernel32.*,user32.*,shell32.*")
+    PyCommand("!mona bf -t ADD -f import -s kernel32.*,user32.*,shell32.*")
     PyCommand("!logginghook %s" % logpath)
-    SHELL.SendKeys("{F9}")
     for _ in range(100):
         time.sleep(1)
         SHELL.SendKeys("{F9}")
