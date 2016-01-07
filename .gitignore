@@ -3,3 +3,4 @@ __pycache__
 ~$*.docx
 *.exe
 *.log
+vbox/samples/
