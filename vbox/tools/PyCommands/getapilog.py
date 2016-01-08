@@ -85,8 +85,8 @@ def executePyCommands(sample):
     PyCommand("!hidedebug All_Process")
     PyCommand("!hidedebug All_Window")
     PyCommand("!mona config -set workingfolder " + LOGS_DIR + "{%}p")
-    PyCommand("!mona getiat -s kernel32.*,user32.*,shell32.*")
-    PyCommand("!mona bf -t ADD -f import -s kernel32.*,user32.*,shell32.*")
+    PyCommand('!mona getiat -s "kernel32.*,user32.*,shell32.*"')
+    PyCommand('!mona bf -t ADD -f import -s "kernel32.*,user32.*,shell32.*"')
     PyCommand("!logginghook %s" % logpath)
     for _ in range(100):
         time.sleep(1)
