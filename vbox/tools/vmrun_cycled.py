@@ -153,7 +153,6 @@ def readfilefromVM(name='Candy',
         print("[-] Couldn't read specified file {} on {} machine, {}".format(
             src_file, name, str(e))
               )
-        sys.exit(1)
     finally:
         mysession.close()
         session.unlockMachine()
@@ -240,7 +239,7 @@ def run_cycled(work_dir='C:/workdir'):
                                )
                            ),
                        timeoutMS=120000)
-        time.sleep(20)
+        time.sleep(45)
         cur_log = os.path.join(VMLOGS_DIR,
                                os.path.splitext(proc_name)[0],
                                'apicalls.log')
