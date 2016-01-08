@@ -1,5 +1,4 @@
-1)  a) InetSim default files change.
-    b) Anti-VM detection tool add to Image and reqs. ( force size of C:/ to >50 GB ?)
+1)  a) Anti-VM detection tool add to Image and reqs. ( force size of C:/ to >50 GB ?)
 
 2)  a) Choose what to trace -> look apitrace.py # kernel32 tracing supplemented by user32, since some viruses obviously don't use kernel32
     b) Classify api by libs/ args.

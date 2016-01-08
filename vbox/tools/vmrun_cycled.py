@@ -18,10 +18,18 @@ from drawer import draw_samples
 from PyCommands.settings import LOGS_DIR as VMLOGS_DIR
 from PyCommands.settings import IMMUNITY_PATH
 from PyCommands.settings import SAMPLE_PATH
+from PyCommands.settings import DEPLOY_DIR
 CHUNKSIZE = 4096
 
 CURDIR = os.path.dirname(os.path.abspath(__name__))
 PYTHON = r'C:/Python27/python.exe'
+
+WINVM = 'TempOS'
+LOGIN = 'One'
+PASSWORD = '1'
+
+LINUXVM = 'INetSim'
+
 IMMUNITY_DIR = os.path.join(os.path.dirname(IMMUNITY_PATH), 'PyCommands')
 MONA = os.path.join(IMMUNITY_DIR, 'mona.py')
 LOGS_PATH = os.path.join(CURDIR, os.pardir, 'logs')
@@ -44,7 +52,7 @@ assert os.path.isdir(SAMPLE_PATH)
 assert os.path.isdir(LOGS_PATH)
 
 
-def startVM(name='INetSim', style='headless', snapshot='Working INetSIM'):
+def startVM(name=LINUXVM, style='headless', snapshot='Working INetSIM'):
     machine = VBOX.findMachine(name)
     session = vbmanager.openMachineSession(machine)
     machine_ctrl = session.machine
@@ -68,16 +76,22 @@ def copytoolstoVM(dest_dir='C:/foo'):
         copyfiletoVM(src_file=toolpath, dest_dir=IMMUNITY_DIR)
         if any(val in toolpath for val in ('settings', 'getapilog', 'zipper')):
             copyfiletoVM(src_file=toolpath, dest_dir=dest_dir)
-        
-        
     print('[+] Done.')
 
 
-def copyfiletoVM(name='Candy',
+def deploytoolstoVM(dest_dir='C:/foo'):
+    print('[!] Deploying tools ...')
+    for packet in glob.glob(os.path.join(DEPLOY_DIR, '*')):
+        if not 'tar.gz' in packet:
+            copyfiletoVM(src_file=packet, dest_dir=dest_dir)
+    print('[+] Done.')
+
+
+def copyfiletoVM(name=WINVM,
                  src_file='Q:\compilers\decompilation_thesis.pdf',
                  dest_dir='C:/fuu/',
-                 username='John',
-                 password='123'):
+                 username=LOGIN,
+                 password=PASSWORD):
     filename = os.path.basename(src_file)
     dest_file = os.path.join(dest_dir, filename)
     machine = VBOX.findMachine(name)
@@ -117,11 +131,11 @@ def copyfiletoVM(name='Candy',
         session.unlockMachine()
 
 
-def readfilefromVM(name='Candy',
+def readfilefromVM(name=WINVM,
                    src_file='C:/fuu/log.txt',
                    dest_dir='Q:/compilers/',
-                   username='John',
-                   password='123'):
+                   username=LOGIN,
+                   password=PASSWORD):
     filename = os.path.basename(src_file)
     dest_file = os.path.join(dest_dir, filename)
     machine = VBOX.findMachine(name)
@@ -158,11 +172,11 @@ def readfilefromVM(name='Candy',
         session.unlockMachine()
 
 
-def runprocessonVM(name='Candy',
+def runprocessonVM(name=WINVM,
                    dest_file='C:/Windows/notepad.exe',
                    args='',
-                   username='John',
-                   password='123',
+                   username=LOGIN,
+                   password=PASSWORD,
                    work_dir='',
                    timeoutMS=60000):
     argarray = ['']
@@ -225,8 +239,8 @@ def run_cycled(work_dir='C:/workdir'):
     #draw_samples()
     for eachsample in glob.glob(os.path.join(SAMPLE_PATH, '*.zip')):
         proc_name = os.path.basename(eachsample)
-        startVM()
-        startVM(name='Candy', style='headless', snapshot="modded")
+        startVM(snapshot='fixed')
+        startVM(name=WINVM, style='headless', snapshot='ready')
         copytoolstoVM(dest_dir=work_dir)
         copyfiletoVM(src_file=eachsample, dest_dir=work_dir)
         getapi = os.path.join(work_dir, GETAPI)
@@ -249,4 +263,4 @@ def run_cycled(work_dir='C:/workdir'):
             os.makedirs(sample_log)
         readfilefromVM(src_file=cur_log, dest_dir=sample_log)
         freezeVM()
-        freezeVM(name='Candy')
+        freezeVM(name=WINVM)
