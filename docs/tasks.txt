@@ -4,5 +4,6 @@
     d) Expand arguments lookup in apicalls for different important functions, like GetDirectory -> look for systempaths in it
     e) Look at UPX'ed run results -> investigate further (seems, Imm founds out it's packed).
 
-3) Following new processes/threads -> look apitrace.py, it's ready implementation
+3) a)Following new processes/threads -> look apitrace.py, it's ready implementation
+   b)Maybe add functions_hooker.add(funcaddr...) on GetProcAddress (run until return -> capture string with pointer in eax ? )
 

@@ -25,9 +25,9 @@ CHUNKSIZE = 4096
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 PYTHON = r'C:/Python27/python.exe'
 
-WINVM = 'Agent_01'
-LOGIN = 'John'
-PASSWORD = '123'
+WINVM = 'TempOS'
+LOGIN = 'One'
+PASSWORD = '1'
 
 LINUXVM = 'INetSim'
 
@@ -240,7 +240,7 @@ def run_cycled(work_dir='C:/workdir'):
     for eachsample in glob.glob(os.path.join(SAMPLE_PATH, '*.zip')):
         proc_name = os.path.basename(eachsample)
         startVM(snapshot='fixed')
-        startVM(name=WINVM, style='headless', snapshot='ready')
+        startVM(name=WINVM, style='headless', snapshot='dotnet')
         copytoolstoVM(dest_dir=work_dir)
         copyfiletoVM(src_file=eachsample, dest_dir=work_dir)
         getapi = os.path.join(work_dir, GETAPI)

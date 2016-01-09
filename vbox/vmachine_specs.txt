@@ -10,3 +10,4 @@ VirtualBox : v 5.10 (obviously bugged, but it seems possible to found workaround
     c) Python (obviously, version, supported by Imm - 2.7.1);
     d) Installed pywin32
     e) check using Paranoid fish (for every Windows VM run python tools/HideVBox/camouflage.py <list of vm names>).
+    f) install .Net 4.5 4.0.1 etc.(required for viruses, else won't run ...)
