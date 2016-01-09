@@ -18,15 +18,16 @@ from drawer import draw_samples
 from PyCommands.settings import LOGS_DIR as VMLOGS_DIR
 from PyCommands.settings import IMMUNITY_PATH
 from PyCommands.settings import SAMPLE_PATH
+
 from PyCommands.settings import DEPLOY_DIR
 CHUNKSIZE = 4096
 
-CURDIR = os.path.dirname(os.path.abspath(__name__))
+CURDIR = os.path.dirname(os.path.abspath(__file__))
 PYTHON = r'C:/Python27/python.exe'
 
-WINVM = 'TempOS'
-LOGIN = 'One'
-PASSWORD = '1'
+WINVM = 'Agent_01'
+LOGIN = 'John'
+PASSWORD = '123'
 
 LINUXVM = 'INetSim'
 
@@ -72,7 +73,6 @@ def copytoolstoVM(dest_dir='C:/foo'):
     print('[!] Copying toolkit for debuggee...')
     for tool in KIT:
         toolpath = os.path.join(CURDIR, KIT_DIR, tool)
-        #assert False, (toolpath, dest_dir)
         copyfiletoVM(src_file=toolpath, dest_dir=IMMUNITY_DIR)
         if any(val in toolpath for val in ('settings', 'getapilog', 'zipper')):
             copyfiletoVM(src_file=toolpath, dest_dir=dest_dir)

@@ -10,19 +10,20 @@ from subprocess import Popen, PIPE, STDOUT
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(CURDIR, os.pardir))
 
-from PyCommands.settings import VBOXMANAGE
+from PyCommands.settings import VBOXMANAGE, DEPLOY_DIR
+
 ACPI = os.path.join(CURDIR, 'acpidump.exe')
 DMI = os.path.join(CURDIR, 'dmidecode.exe')
 HDPARM = os.path.join(CURDIR, 'hdparm.exe')
 ENUMCD = os.path.join(CURDIR, 'EnumCD.exe')
-VENDORRE = re.compile(r"Vendor: ([A-Za-z0-9\\ .,]+)")
-VERSIONRE = re.compile(r"Version: ([A-Za-z0-9\\ .,]+)")
-RELEASEDATERE = re.compile(r"Release Date: ([0-9\\/-]+)")
-MANUFRE = re.compile(r"Manufacturer: ([A-Za-z0-9\\ .,]+)")
-PRODUCTRE = re.compile(r"Product Name: ([A-Za-z0-9\\ -.,]+)")
-SERIALRE = re.compile(r"Serial Number: ([A-Za-z0-9\\ -]+)")
-SKURE = re.compile(r"SKU Number: ([A-Za-z0-9\\ -.]+)")
-FAMILYRE = re.compile(r"Family: ([A-Za-z0-9\\ -.]+)")
+VENDORRE = re.compile(r"Vendor: ([A-Za-z0-9 .,]+)")
+VERSIONRE = re.compile(r"Version: ([A-Za-z0-9 \(\).,]+)")
+RELEASEDATERE = re.compile(r"Release Date: ([0-9/-]+)")
+MANUFRE = re.compile(r"Manufacturer: ([A-Za-z0-9 .,]+)")
+PRODUCTRE = re.compile(r"Product Name: ([A-Za-z0-9 -.,]+)")
+SERIALRE = re.compile(r"Serial Number: ([A-Za-z0-9 -]+)")
+SKURE = re.compile(r"SKU Number: ([A-Za-z0-9 -.]+)")
+FAMILYRE = re.compile(r"Family: ([A-Za-z0-9 -.]+)")
 UUIDRE = re.compile(r"UUID: ([A-Fa-f0-9-]+)")
 TYPERE = re.compile(r"Type: ([A-Za-z 0-9]+)")
 HDRE = re.compile(r'Model=([A-Z0-9- ]+), FwRev=([A-Z0-9.]+), SerialNo=\s+([A-Z0-9-]+)', flags=re.IGNORECASE)
@@ -57,7 +58,26 @@ CHASSIS = [
     "AdvancedTCA",  
     "Blade",  
     "Blade Enclosing"  
-    ]  
+    ]
+
+BAT_TEMPLATE =\
+"""@reg copy HKLM\HARDWARE\ACPI\DSDT\VBOX__ HKLM\HARDWARE\ACPI\DSDT\<VENDORNAME> /s /f
+@reg delete HKLM\HARDWARE\ACPI\DSDT\VBOX__ /f
+
+@reg copy HKEY_LOCAL_MACHINE\HARDWARE\ACPI\DSDT\<VENDORNAME>\VBOXBIOS HKEY_LOCAL_MACHINE\HARDWARE\ACPI\DSDT\<VENDORNAME>\<VENDOR>BIOS /s /f
+@reg delete HKEY_LOCAL_MACHINE\HARDWARE\ACPI\DSDT\<VENDORNAME>\VBOXBIOS /f
+
+@reg copy HKEY_LOCAL_MACHINE\HARDWARE\ACPI\FADT\<VENDORNAME>\VBOXFACP HKEY_LOCAL_MACHINE\HARDWARE\ACPI\FADT\<VENDORNAME>\<VENDOR>FACP /s /f
+@reg delete HKEY_LOCAL_MACHINE\HARDWARE\ACPI\FADT\<VENDORNAME>\VBOXFACP /f
+
+@reg copy HKEY_LOCAL_MACHINE\HARDWARE\ACPI\RSDT\<VENDORNAME>\VBOXRSDT HKEY_LOCAL_MACHINE\HARDWARE\ACPI\RSDT\<VENDORNAME>\<VENDOR>RSDT /s /f
+@reg delete HKEY_LOCAL_MACHINE\HARDWARE\ACPI\RSDT\<VENDORNAME>\VBOXRSDT /f
+
+@reg add HKEY_LOCAL_MACHINE\HARDWARE\DESCRIPTION\System /v VideoBiosVersion /t REG_MULTI_SZ /d "VGA BIOS v1.14" /f
+
+@reg delete HKEY_LOCAL_MACHINE\HARDWARE\DESCRIPTION\System\SystemBiosDate /f
+@reg add HKEY_LOCAL_MACHINE\HARDWARE\DESCRIPTION\System /v SystemBiosDate /t REG_SZ /d "15/10/2011" /f
+"""
 
 from random import randint
 
@@ -86,7 +106,7 @@ def getacpi():
     popen(ACPI, '-n', 'DSDT', '-b') # -b dumps table to dsdt.dat
     retval = os.path.join(CURDIR, 'dsdt.dat')
     assert os.path.isfile(retval)
-    return retval
+    return os.altsep.join(retval.split(os.sep))
 
 
 def gethd():
@@ -118,14 +138,19 @@ def getcd():
     return cd
 
 
-
-    
+def genbat(vendor='GBT'):
+    vendorname = vendor.ljust(6, '_')
+    dump = BAT_TEMPLATE.replace('<VENDORNAME>', vendorname)
+    dump = dump.replace('<VENDOR>', vendor)
+    with open(os.path.join(DEPLOY_DIR, 'modreg.bat'), 'w') as outp:
+        outp.write(dump)
+        
 
 def getdmi():
     dmi = dict()
     buff = popen(DMI, '-t0').decode('ascii')
     dmi['DmiBIOSVendor'] = VENDORRE.search(buff).group(1)
-    dmi['DmiBIOSVersion'] = VERSIONRE.search(buff).group(1)
+    dmi['DmiBIOSVersion'] = "string:" + VERSIONRE.search(buff).group(1)
     dmi['DmiBIOSReleaseDate'] = RELEASEDATERE.search(buff).group(1)
 
     buff = popen(DMI, '-t1').decode('ascii')
@@ -140,25 +165,28 @@ def getdmi():
     buff = popen(DMI, '-t2').decode('ascii')
     dmi['DmiBoardVendor'] = MANUFRE.search(buff).group(1)
     dmi['DmiBoardProduct'] = PRODUCTRE.search(buff).group(1)
-    dmi['DmiBoardVersion'] = 'string:' + VERSIONRE.search(buff).group(1)#*
-    dmi['DmiBoardSerial'] = 'string:' + SERIALRE.search(buff).group(1)#*
+    dmi['DmiBoardVersion'] = 'Not Available'#*
+    dmi['DmiBoardAssetTag'] = 'Not Specified'#*
+    dmi['DmiBoardLocInChass'] = 'Not Specified'#*
+    dmi['DmiBoardSerial'] = 'string:' + str(randint(1, 10**19))#*
 
     buff = popen(DMI, '-t3').decode('ascii')
     dmi['DmiChassisVendor'] = MANUFRE.search(buff).group(1)
     dmi['DmiChassisType'] = str(CHASSIS.index(TYPERE.search(buff).group(1)) + 1)
-    dmi['DmiChassisVersion'] = 'string:' + VERSIONRE.search(buff).group(1)#*
-    dmi['DmiChassisSerial'] = 'string:' + SERIALRE.search(buff).group(1)#*
+    dmi['DmiChassisVersion'] = 'Not Available'#*
+    dmi['DmiChassisSerial'] = 'string:' + str(randint(1, 10**19))#*
+    dmi['DmiChassisAssetTag'] = 'No Asset Information'#*
 
     buff = popen(DMI, '-t4').decode('ascii')
     dmi['DmiProcManufacturer'] = MANUFRE.search(buff).group(1)
     dmi['DmiProcVersion'] = 'string:' + VERSIONRE.search(buff).group(1)
     
+    real = dict()
     for key, val in dmi.items():
-        if val is None:
-            del dmi[key]
-        else:
-            dmi[key] = val.strip()
-    return dmi
+        val = val.strip()
+        if not(val is None or val == 'string:' or val == ''):
+            real[key] = val
+    return real
 
 
 def main():
@@ -167,11 +195,11 @@ def main():
         dmi = getdmi()
         print("[!] Patching DMI ...")
         for key, value in dmi.items():
+            print('[!] Patching {} with value {}'.format(key, value))
             popen(VBOXMANAGE, 'setextradata', target, 'VBoxInternal/Devices/pcbios/0/Config/' + key, value)
         print("[!] Patching ACPI ...")
-
         dsdt = getacpi()
-        #popen(VBOXMANAGE, 'setextradata', target, 'VBoxInternal/Devices/acpi/0/Config/CustomTable', dsdt)
+        popen(VBOXMANAGE, 'setextradata', target, 'VBoxInternal/Devices/acpi/0/Config/CustomTable', dsdt)
         
         newmac = randomMAC()
         print("[!] Patching MAC with new value {}...".format(newmac))
@@ -187,6 +215,8 @@ def main():
         print("[!] Patching OEM info ...")            
         popen(VBOXMANAGE, 'setextradata', target, 'VBoxInternal/Devices/pcbios/0/Config/DmiOEMVBoxVer', '<EMPTY>')
         popen(VBOXMANAGE, 'setextradata', target, 'VBoxInternal/Devices/pcbios/0/Config/DmiOEMVBoxRev', '<EMPTY>')
+        print("[!] Generating regmod script ...")
+        genbat()
         print("[+] Succesfully done patching on {}".format(target))
         
   
