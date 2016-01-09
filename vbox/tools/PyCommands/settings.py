@@ -6,3 +6,4 @@ SAMPLE_PATH = os.path.join(_CURDIR, os.pardir, 'samples')
 DEPLOY_DIR = os.path.join(_CURDIR, os.pardir, 'deploy')
 VIRUS_SHARE = os.path.join(SAMPLE_PATH, 'VirusShare')
 MAL_SHARE = os.path.join(SAMPLE_PATH, 'MalShare')
+VBOXMANAGE = r"C:\Program Files\Oracle\VirtualBox\VBoxManage.exe"

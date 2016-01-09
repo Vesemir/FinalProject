@@ -4,3 +4,4 @@ mona: Copyright (c) 2013, Corelan GCV
 VirtualBox: Copyright © 2015 Oracle Corporation and/or its affiliates. All rights reserved
 INetSim: developed by Thomas Hungenberg and Matthias Eckert, GNU GPL v 3.0; 
 MadApateDNS: created by Steve Davis, Copyright © 2016 FireEye
+AntiAntiVM script: ported idea by http://blog.michaelboman.org/2014/01/making-virtualbox-nearly-undetectable.html
