@@ -1,6 +1,7 @@
 __pycache__
 *.pyc
 ~$*.docx
+~$*vsd
 Virus*.zip
 *.log
 vbox/samples/
