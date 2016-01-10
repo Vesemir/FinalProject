@@ -1,6 +1,6 @@
 __pycache__
 *.pyc
 ~$*.docx
-*.exe
+Virus*.zip
 *.log
 vbox/samples/
