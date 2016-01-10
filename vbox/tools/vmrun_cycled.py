@@ -236,7 +236,7 @@ def freezeVM(name='INetSim'):
 
 
 def run_cycled(work_dir='C:/workdir'):
-    draw_samples()
+    #draw_samples()
     ctr = 1
     for eachsample in glob.glob(os.path.join(SAMPLE_PATH, '*.zip')):
         print('[!] Launching {}\'th sample'.format(ctr))

@@ -74,14 +74,22 @@ class CallGetter(LogBpHook):
                 extra['libname'] = tr(self.imm.readMemory(p_libname, 30))
         if 'getprocaddress' in self.fdict[pos]:
             p_funcname = self.imm.readLong(regs['ESP'] + 8)
-            extra['funcname'] = tr(self.imm.readMemory(p_funcname, 30))
+            fname = tr(self.imm.readMemory(p_funcname, 30))
+            extra['funcname'] = fname
+            self.imm.runTillRet()
+            newregs = self.imm.getRegs()
+            faddr = newregs['EAX']
+            self.add("%08x" % faddr, faddr)
+            self.fdict[faddr] = fname.lower()
+            self.imm.setBreakpoint(faddr) # adds newly looked up func for tracing
+            
         if 'findfirstfile' in self.fdict[pos]:
             p_filename = self.imm.readLong(regs['ESP'] + 4)
             extra['filename'] = tr(self.imm.readMemory(p_filename, 30))
         if 'regopenkey' in self.fdict[pos]:
             p_regkey = self.imm.readLong(regs['ESP'] + 8)
             if p_regkey:
-                extra['regkey'] = tr(self.imm.readMemory(p_regkey, 30))
+                extra['regkey'] = tr(self.imm.readMemory(p_regkey, 80))
         if 'findresource' in self.fdict[pos]:
             p_resource = self.imm.readLong(regs['ESP'] + 8)
             try: #  Microsoft says it can be some macros MAKEINTRESOURCESTRING
@@ -141,8 +149,8 @@ class CallGetter(LogBpHook):
                 extra['src_string'] = tr(self.imm.readMemory(p_srcstring, 30))
         if 'strlen' in self.fdict[pos]:
             p_string = self.imm.readLong(regs['ESP'] + 4)
-            if p_string:
-                extra['string'] = tr(self.imm.readMemory(p_string, 30))
+            if p_string: # there are probably null bytes in strlenW gotta check
+                extra['string'] = self.imm.readMemory(p_string, 30)
         if 'openfile' in self.fdict[pos]:
             p_filename = self.imm.readLong(regs['ESP'] + 4)
             if p_filename:
