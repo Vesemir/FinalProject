@@ -254,8 +254,8 @@ def run_cycled(work_dir='C:/workdir'):
                                work_dir, proc_name
                                )
                            ),
-                       timeoutMS=120000)
-        time.sleep(40)
+                       timeoutMS=300000)
+        
         cur_log = os.path.join(VMLOGS_DIR,
                                os.path.splitext(proc_name)[0],
                                'apicalls.log')
