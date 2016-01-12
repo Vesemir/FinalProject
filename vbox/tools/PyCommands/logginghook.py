@@ -16,7 +16,7 @@ from mona import MnCommand, MnConfig, MnModule
 #MnCommand("config","Manage configuration file (mona.ini)",configUsage,procConfig,"conf")
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from settings import LOGS_DIR, F_FILEOPEN, F_DESACCESS, F_SHAREMODE
-from settings import F_CLSCTX, F_FLANDATTRS
+from settings import F_CLSCTX, F_FLANDATTRS, F_MOVFLAGS
 
 IMPORTANT_FUNCTIONS = (
     'loadlibrary', 'getprocaddress', 'findfirstfile', 'regopenkey', 'findresource',
@@ -130,6 +130,21 @@ class CallGetter(LogBpHook):
                 self.fdict[faddr] = fname.lower()
                 self.imm.log("Added bp on {} for {}".format(faddr, fname))
                 #self.imm.setLoggingBreakpoint(faddr) # seems it is already added by .add
+        if 'movefile' in bp_decoded:
+            p_src = self.imm.readLong(regs['ESP'] + 4)
+            p_dest = self.imm.readLong(regs['ESP'] + 8)
+            extra['src'] = tr(self.imm.readMemory(p_src, 50))
+            if p_dest:
+                extra['dest'] = tr(self.imm.readMemory(p_dest, 50))
+            if 'ex' in bp_decoded:
+                movflags = self.imm.readLong(regs['ESP'] + 0x0c)
+                extra['flags'] = get_enabled_flags(F_MOVFLAGS, movflags)
+            if 'progress' in bp_decoded:
+                movflags = self.imm.readLong(regs['ESP'] + 0x14)
+                extra['flags'] = get_enabled_flags(F_MOVFLAGS, movflags)
+                                   
+                                   
+            
             
         if 'findfirstfile' in bp_decoded:
             p_filename = self.imm.readLong(regs['ESP'] + 4)

@@ -67,6 +67,13 @@ F_CLSCTX = {0x1: 'CLSCTX_INPROC_SERVER',
             0x800000: 'CLSCTX_ACTIVATE_AAA_AS_IU',
             0x80000000: 'CLSCTX_PS_DLL'}
 
+F_MOVFLAGS = {0x2: 'MOVEFILE_COPY_ALLOWED',
+              0x10: 'MOVEFILE_CREATE_HARDLINK',
+              0x4: 'MOVEFILE_DELAY_UNTIL_REBOOT',
+              0x20: 'MOVEFILE_FAIL_IF_NOT_TRACKABLE',
+              0x1: 'MOVEFILE_REPLACE_EXISTING',
+              0x8: 'MOVEFILE_WRITE_THROUGH'}
+
 CLSIDS = {'{D20EA4E1-3957-11d2-A40B-0C5020524153}': 'Administrative Tools',
           '{ED7BA470-8E54-465E-825C-99712043E01C}': 'All Tasks',
           '{21EC2020-3AEA-1069-A2DD-08002b30309d}': 'Control Panel',
@@ -85,6 +92,22 @@ CLSIDS = {'{D20EA4E1-3957-11d2-A40B-0C5020524153}': 'Administrative Tools',
           '{1D2680C9-0E2A-469d-B787-065558BC7D43}': 'Sert',
           '{78F3955E-3B90-4184-BD14-5397C15F1EFC}': 'WEI',
           '{4026492F-2F69-46B8-B9BF-5654FC07E423}': 'Brandmauer'}
+
+REG_BRANCHES = {r'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Windows\AppInit_DLLs': 'appinitdlls',
+                r'HKEY_LOCAL_MACHINE\software\microsoft\windows\currentversion\explorer\browser helper objects': 'bho',
+                r'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy': 'fw_config',
+                r'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options': 'imagefile',
+                r'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services': 'services',
+                r'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon': 'userinit',
+                r'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run': 'autorun',
+                r'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run': 'autorun',
+                r'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunOnce': 'autorun',
+                r'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce': 'autorun',
+                r'HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\services\Tcpip\Parameters\PersistentRoutes': 'routes',
+                r'HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\Control\Session Manager\PendingFileRenameOperations': 'deferredremove'}
+
+
+
 
           
 
