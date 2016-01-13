@@ -64,7 +64,7 @@ def focusdebugger(pid):
 def rundebuggee(sample):
     print("[!] Running debuggee ..")
     dbg = subprocess.Popen([IMMUNITY_PATH, sample])
-    time.sleep(12)
+    time.sleep(10)
     #focusdebugger(dbg.pid) doesn't work in vbox for some reason
     print("[+] Done.")
 
@@ -84,8 +84,8 @@ def executePyCommands(sample):
     #PyCommand("!hidedebug All_Debug")
     #PyCommand("!hidedebug All_Process")
     #PyCommand("!hidedebug All_Window")
-    PyCommand("!mona config -set workingfolder " + LOGS_DIR + "{%}p")
-    PyCommand('!mona getiat -s "kernel32.*,user32.*,shell32.*,advapi32.*"')
+    #PyCommand("!mona config -set workingfolder " + LOGS_DIR + "{%}p")
+    #PyCommand('!mona getiat -s "kernel32.*,user32.*,shell32.*,advapi32.*"')
     PyCommand("!logginghook %s" % logpath)
     for _ in range(9999):
         time.sleep(0.1)

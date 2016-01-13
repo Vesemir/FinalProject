@@ -11,7 +11,7 @@ from hidedebug import (Patch_PEB, Patch_IsDebuggerPresent,
                        Patch_GetTickCount,
                        Patch_ZwQuerySystemInformation,
                        Patch_FindWindow, Patch_EnumWindows)
-from mona import MnCommand, MnConfig, MnModule
+from mona import MnCommand, MnConfig, MnModule, MnPointer, MnLog
 
 #MnCommand("config","Manage configuration file (mona.ini)",configUsage,procConfig,"conf")
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -27,17 +27,159 @@ IMPORTANT_FUNCTIONS = (
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 FUNCTION = re.compile(r'At 0x[0-9a-f]{8} in (?P<libname>\w+) \(base \+ 0x[0-9a-f]{8}\) : (?P<funcaddr>0x[0-9a-f]{8}) \(ptr to (?P<funcname>[a-zA-Z0-9.]+)\)')
 
+
 valid = re.compile(r'(?P<funcname>\w+)\n(?P<funcdesc>[A-Z].+?\.)\n', re.DOTALL)
+
+#ripped off from mona
+arch = 32
+
+
+def toHex(n):
+    if arch == 32:
+        return "%08x" % n
+    if arch == 64:
+        return "%016x" % n
 
 
 def setconfig():
     monaConfig = MnConfig()
-    value = args["set"].split(" ")
-    configparam = value[0].strip()
-    dbg.log("Old value of parameter %s = %s" % (configparam,monaConfig.get(configparam)))
-    configvalue = args["set"][0+len(configparam):len(args["set"])]
+    configparam, configvalue = 'workingfolder', LOGS_DIR + "%p"
     monaConfig.set(configparam,configvalue)
-    dbg.log("New value of parameter %s = %s" % (configparam,configvalue))
+
+
+def populateModuleInfo(dbg):
+    g_modules={}
+    allmodules=dbg.getAllModules()
+    curmod = ""
+    for key in allmodules.keys():
+        modinfo={}
+        thismod = MnModule(key)
+        if not thismod is None:
+            modinfo["path"]     = thismod.modulePath
+            modinfo["base"]     = thismod.moduleBase
+            modinfo["size"]     = thismod.moduleSize
+            modinfo["top"]      = thismod.moduleTop
+            modinfo["safeseh"]  = thismod.isSafeSEH
+            modinfo["aslr"]     = thismod.isAslr
+            modinfo["nx"]       = thismod.isNX
+            modinfo["rebase"]   = thismod.isRebase
+            modinfo["version"]  = thismod.moduleVersion
+            modinfo["os"]       = thismod.isOS
+            modinfo["name"]     = key
+            modinfo["entry"]    = thismod.moduleEntry
+            modinfo["codebase"] = thismod.moduleCodebase
+            modinfo["codesize"] = thismod.moduleCodesize
+            modinfo["codetop"]  = thismod.moduleCodetop
+            g_modules[thismod.moduleKey] = modinfo
+        else:
+            dbg.log("    - Oops, potential issue with module %s, skipping module" % key)
+    dbg.log("    - Done. Let's rock 'n roll.")
+    dbg.setStatusBar("")
+    dbg.updateLog()
+    return g_modules
+
+
+def getModulesToQuery(imm):
+    g_modules = populateModuleInfo(imm)
+    modulestoquery=[]
+    for thismodule,modproperties in g_modules.iteritems():
+        thismod = MnModule(thismodule)
+        modulestoquery.append(thismod.moduleKey)
+    return modulestoquery
+
+
+def procGetxAT(dbg, mode='iat'):
+    keywords = []
+    keywordstring = ""
+    
+    criteria = {}
+    thisxat = {}
+    entriesfound = 0
+
+    keywordstring = 'kernel32.*,user32.*,shell32.*,advapi32.*'
+
+    keywords = keywordstring.split(",")
+
+    criteria["accesslevel"] = "X"
+
+    
+    modulestosearch = getModulesToQuery(dbg)
+    dbg.log("[+] Querying %d modules" % len(modulestosearch))
+
+    if len(modulestosearch) > 0:
+        xatfilename="%ssearch.txt" % mode
+        objxatfilename = MnLog(xatfilename)
+        xatfile = objxatfilename.reset()
+
+        for thismodule in modulestosearch:
+            thismod = MnModule(thismodule)
+            thisxat = thismod.getIAT()
+            thismodule = thismod.getShortName()
+
+            for thisfunc in thisxat:
+                thisfuncname = thisxat[thisfunc].lower()
+                origfuncname = thisfuncname
+                firstindex = thisfuncname.find(".")
+                if firstindex > 0:
+                    thisfuncname = thisfuncname[firstindex+1:len(thisfuncname)]
+                addtolist = False
+                iatptr_modname = ""
+                modinfohr = ""
+                               
+                theptr = struct.unpack('<L',dbg.readMemory(thisfunc,4))[0]
+                ptrx = MnPointer(theptr)
+                iatptr_modname = ptrx.belongsTo()
+                if not iatptr_modname == "" and "." in iatptr_modname:
+                    iatptr_modparts = iatptr_modname.split(".")
+                    iatptr_modname = iatptr_modparts[0]
+                if not "." in origfuncname and iatptr_modname != "" and not "!" in origfuncname:
+                    origfuncname = iatptr_modname.lower() + "." + origfuncname
+                    thisfuncname = origfuncname
+
+                if "!" in origfuncname:
+                    oparts = origfuncname.split("!")
+                    origfuncname = iatptr_modname + "." + oparts[1]
+                    thisfuncname = origfuncname
+
+                try:
+                    ModObj = MnModule(iatptr_modname)
+                    modinfohr = " - %s" % (ModObj.__str__())
+                except:
+                    modinfohr = ""
+                    pass
+
+                if len(keywords) > 0:
+                    for keyword in keywords:
+                        keyword = keyword.lower().strip()
+                        if ((keyword.startswith("*") and keyword.endswith("*")) or keyword.find("*") < 0):
+                            keyword = keyword.replace("*","")
+                            if thisfuncname.find(keyword) > -1:
+                                addtolist = True
+                                break
+                        if keyword.startswith("*") and not keyword.endswith("*"):
+                            keyword = keyword.replace("*","")
+                            if thisfuncname.endswith(keyword):
+                                addtolist = True
+                                break
+                        if keyword.endswith("*") and not keyword.startswith("*"):
+                            keyword = keyword.replace("*","")
+                            if thisfuncname.startswith(keyword):
+                                addtolist = True
+                                break
+                else:
+                    addtolist = True
+                if addtolist:
+                    entriesfound += 1
+                    # add info about the module
+
+                    thedelta = thisfunc - thismod.moduleBase
+                    logentry = "At 0x%s in %s (base + 0x%s) : 0x%s (ptr to %s) %s" % (toHex(thisfunc),thismodule.lower(),toHex(thedelta),toHex(theptr),origfuncname,modinfohr)
+                    
+                    dbg.log(logentry,address = thisfunc)
+                    objxatfilename.write(logentry,xatfile)
+        dbg.log("")
+        dbg.log("%d entries found" % entriesfound)
+#/rip
 
 def hide(imm):
     Patch_PEB(imm)
@@ -278,6 +420,8 @@ class CallGetter(LogBpHook):
 def main(args):
     imm = Debugger()
     hide(imm)
+    setconfig()
+    procGetxAT(imm)
     logspath = args[0]
     path = os.path.join(logspath, "iatsearch.txt")
     functions_dict = function_dict(path)
