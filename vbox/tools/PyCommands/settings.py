@@ -104,9 +104,13 @@ REG_BRANCHES = {r'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersio
                 r'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunOnce': 'autorun',
                 r'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce': 'autorun',
                 r'HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\services\Tcpip\Parameters\PersistentRoutes': 'routes',
-                r'HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\Control\Session Manager\PendingFileRenameOperations': 'deferredremove'}
+                r'HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\Control\Session Manager\PendingFileRenameOperations': 'deferredremove',
+                r'HKEY_CURRENT_USER\Software\Microsoft\SystemCertificates': 'certificates',
+                r'HKEY_LOCAL_MACHINE\Software\Microsoft\SystemCertificates': 'certificates'}
 
-
+DANGEROUS_LIBS = {'sfc_os.dll': 'Windows File Protection',
+                  'pstorec.dll': 'Protected storage',
+                  'ntoskrnl.exe': 'SSDT hook'}
 
 
           

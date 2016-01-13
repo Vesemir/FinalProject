@@ -29,9 +29,6 @@ FUNCTION = re.compile(r'At 0x[0-9a-f]{8} in (?P<libname>\w+) \(base \+ 0x[0-9a-f
 
 valid = re.compile(r'(?P<funcname>\w+)\n(?P<funcdesc>[A-Z].+?\.)\n', re.DOTALL)
 
-trA = lambda x: x.split('\x00')[0]
-trU = lambda x: x.split('\x00\x00')[0]
-
 
 def setconfig():
     monaConfig = MnConfig()
@@ -107,25 +104,28 @@ class CallGetter(LogBpHook):
         pos = regs['EIP']
         bp_decoded = self.imm.decodeAddress(pos).lower()
         arg1 = self.imm.readLong(regs['ESP'] + 4)
-        truncator = trU if bp_decoded.endswith('w') else trA
+        truncator = self.imm.readWString if bp_decoded.endswith('w')\
+                    else self.imm.readString
         self.get_extra_args(extraargs, pos, bp_decoded, regs, truncator)
         self.save_test_case(pos, arg1, extraargs)
 
-    def get_extra_args(self, extra, pos, bp_decoded, regs, tr):
+    def get_extra_args(self, extra, pos, bp_decoded, regs, read_str):
         
         extra['callname'] = bp_decoded
         if 'loadlibrary' in bp_decoded:
             p_libname = self.imm.readLong(regs['ESP'] + 4)
             if p_libname:
-                extra['libname'] = tr(self.imm.readMemory(p_libname, 30))
+                extra['libname'] = read_str(p_libname)
         if 'getprocaddress' == bp_decoded.split('.')[1]:
             p_funcname = self.imm.readLong(regs['ESP'] + 8)
-            fname = tr(self.imm.readMemory(p_funcname, 30))
+            fname = read_str(p_funcname)
+            if not fname.isalpha():
+                fname = '<ordinal>: {}'.format(p_funcname % 0x10000)
             extra['funcname'] = fname
             self.imm.runTillRet()
             newregs = self.imm.getRegs()
             faddr = newregs['EAX']
-            if faddr: # according to MSDN returns address of fucntion
+            if faddr and '.' in fname: # according to MSDN returns address of fucntion
                 self.add("%08x" % faddr, faddr) # doc said I know what I'm doing
                 self.fdict[faddr] = fname.lower()
                 self.imm.log("Added bp on {} for {}".format(faddr, fname))
@@ -133,9 +133,9 @@ class CallGetter(LogBpHook):
         if 'movefile' in bp_decoded:
             p_src = self.imm.readLong(regs['ESP'] + 4)
             p_dest = self.imm.readLong(regs['ESP'] + 8)
-            extra['src'] = tr(self.imm.readMemory(p_src, 50))
+            extra['src'] = read_str(p_src)
             if p_dest:
-                extra['dest'] = tr(self.imm.readMemory(p_dest, 50))
+                extra['dest'] = read_str(p_dest)
             if 'ex' in bp_decoded:
                 movflags = self.imm.readLong(regs['ESP'] + 0x0c)
                 extra['flags'] = get_enabled_flags(F_MOVFLAGS, movflags)
@@ -148,15 +148,24 @@ class CallGetter(LogBpHook):
             
         if 'findfirstfile' in bp_decoded:
             p_filename = self.imm.readLong(regs['ESP'] + 4)
-            extra['filename'] = tr(self.imm.readMemory(p_filename, 60))
+            extra['filename'] = read_str(p_filename)
         if 'regopenkey' in bp_decoded:
             p_regkey = self.imm.readLong(regs['ESP'] + 8)
             if p_regkey:
-                extra['regkey'] = tr(self.imm.readMemory(p_regkey, 80))
+                extra['regkey'] = read_str(p_regkey)
+        if 'regsetvalue' in bp_decoded:
+            p_subkey = self.imm.readLong(regs['ESP'] + 8)
+            if p_subkey:
+                extra['regkey'] = read_str(p_regkey)
+            p_value = self.imm.readLong(regs['ESP'] + 0x10)
+            extra['value'] = read_str(p_value)
+        if 'regcreatekey' in bp_decoded:
+            p_regkey = self.imm.readLong(regs['ESP'] + 8)
+            extra['regkey'] = read_str(p_regkey)
         if 'findresource' in bp_decoded:
             p_resource = self.imm.readLong(regs['ESP'] + 8)
             try: #  Microsoft says it can be some macros MAKEINTRESOURCESTRING
-                extra['resource'] = tr(self.imm.readMemory(p_resource, 30))
+                extra['resource'] = read_str(p_resource)
             except: #  instead of string, dunno what will happen here
                 extra['resource'] = p_resource
         if 'cocreateinstance' in bp_decoded:
@@ -164,84 +173,84 @@ class CallGetter(LogBpHook):
             extra['clsctx'] = get_enabled_flags(F_CLSCTX, clsctx)
         if 'createdirectory' in bp_decoded:
             p_dirname = self.imm.readLong(regs['ESP'] + 4)
-            extra['dirname'] = tr(self.imm.readMemory(p_dirname, 30))
+            extra['dirname'] = read_str(p_dirname)
         if 'httpsendrequest' in bp_decoded:
             l_headers = self.imm.readLong(regs['ESP'] + 0x0c)
             if l_headers != 0:
                 const = 50 if l_headers == -1 else l_headers
                 p_headers = self.imm.readLong(regs['ESP'] + 0x08)
-                extra['headers'] = tr(self.imm.readMemory(p_headers, const))
+                extra['headers'] = read_str(p_headers)
             l_opt = self.imm.readLong(regs['ESP'] + 0x14)
             if l_opt != 0:
                 const = 50 if l_opt == -1 else l_opt
                 p_opt = self.imm.readLong(regs['ESP'] + 0x08)
-                extra['optional'] = tr(self.imm.readMemory(p_opt, const))
+                extra['optional'] = read_str(p_opt)
         if 'createsemaphore' in bp_decoded:
             p_semaphore = self.imm.readLong(regs['ESP'] + 0x10)
-            extra['name'] = tr(self.imm.readMemory(p_semaphore, 30))
+            extra['name'] = read_str(p_semaphore)
         if 'messagebox' in bp_decoded:
             p_text = self.imm.readLong(regs['ESP'] + 8)
             p_caption = self.imm.readLong(regs['ESP'] + 0x0c)
             if p_text:
-                extra['text'] = tr(self.imm.readMemory(p_text, 30))
+                extra['text'] = read_str(p_text)
             if p_caption:
-                extra['caption'] = tr(self.imm.readMemory(p_caption, 30))
+                extra['caption'] = read_str(p_caption)
         if 'shellexecute' in bp_decoded:
             p_operation = self.imm.readLong(regs['ESP'] + 8)
             p_file = self.imm.readLong(regs['ESP'] + 0x0c)
             p_params = self.imm.readLong(regs['ESP'] + 0x10)
             p_directory = self.imm.readLong(regs['ESP'] + 0x14)
             if p_operation:
-                extra['operation'] = tr(self.imm.readMemory(p_operation, 30))
+                extra['operation'] = read_str(p_operation)
             if p_params:
-                extra['params'] = tr(self.imm.readMemory(p_params, 30))
+                extra['params'] = read_str(p_params)
             if p_directory:
-                extra['directory'] = tr(self.imm.readMemory(p_directory, 30))
-            extra['file'] = tr(self.imm.readMemory(p_file, 30))
+                extra['directory'] = read_str(p_directory)
+            extra['file'] = read_str(p_file)
         if 'comparestring' in bp_decoded:
             p_string1 = self.imm.readLong(regs['ESP'] + 0x0c)
             p_string2 = self.imm.readLong(regs['ESP'] + 0x14)
             if p_string1:
-                extra['string1'] = tr(self.imm.readMemory(p_string1, 30))
+                extra['string1'] = read_str(p_string1)
             if p_string2:
-                extra['string2'] = tr(self.imm.readMemory(p_string2, 30))
+                extra['string2'] = read_str(p_string2)
         if 'strcmp' in bp_decoded:
             p_string1 = self.imm.readLong(regs['ESP'] + 4)
             p_string2 = self.imm.readLong(regs['ESP'] + 8)
             if p_string1:
-                extra['string1'] = tr(self.imm.readMemory(p_string1, 30))
+                extra['string1'] = read_str(p_string1)
             if p_string2:
-                extra['string2'] = tr(self.imm.readMemory(p_string2, 30))
+                extra['string2'] = read_str(p_string2)
         if 'strcpy' in bp_decoded:
             p_srcstring = self.imm.readLong(regs['ESP'] + 8)
             if p_srcstring:
-                extra['src_string'] = tr(self.imm.readMemory(p_srcstring, 60))
+                extra['src_string'] = read_str(p_srcstring)
         if 'registerwindowsmessage' in bp_decoded:
             p_message = self.imm.readLong(regs['ESP'] + 4)
             if p_message:
-                extra['message'] = tr(self.imm.readMemory(p_message, 30))
+                extra['message'] = read_str(p_message)
         if 'lcmapstring' in bp_decoded:
             p_srcstring = self.imm.readLong(regs['ESP'] + 0x0c)
             if p_srcstring:
-                extra['src_string'] = tr(self.imm.readMemory(p_srcstring, 30))
+                extra['src_string'] = read_str(p_srcstring)
         if 'strlen' in bp_decoded:
             p_string = self.imm.readLong(regs['ESP'] + 4)
             if p_string: # there are probably null bytes in strlenW gotta check
-                extra['string'] = tr(self.imm.readMemory(p_string, 60))
+                extra['string'] = read_str(p_string)
         if 'querydirectoryfile' in bp_decoded:
             p_filename = self.imm.readLong(regs['ESP'] + 0x28)
             if p_string: # there are probably null bytes in strlenW gotta check
-                extra['filename'] = tr(self.imm.readMemory(p_filename, 60))
+                extra['filename'] = read_str(p_filename)
         if 'openfile' in bp_decoded:
             p_filename = self.imm.readLong(regs['ESP'] + 4)
             if p_filename:
-                extra['filename'] = tr(self.imm.readMemory(p_filename, 40))
+                extra['filename'] = read_str(p_filename)
             style = self.imm.readLong(regs['ESP'] + 0x0C)
             extra['ustyle'] = get_enabled_flags(F_FILEOPEN, style)
         if 'createfile' in bp_decoded:
             p_filename = self.imm.readLong(regs['ESP'] + 4)
             if p_filename:
-                extra['filename'] = tr(self.imm.readMemory(p_filename, 80))
+                extra['filename'] = read_str(p_filename)
             d_access = self.imm.readLong(regs['ESP'] + 8)
             extra['desired_access'] = get_enabled_flags(F_DESACCESS, d_access)
             share_mode = self.imm.readLong(regs['ESP'] + 0x0C)

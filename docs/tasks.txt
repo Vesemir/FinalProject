@@ -1,9 +1,6 @@
 1)  0) aggregate all pycommands; after 0 is done, look, maybe add some hacks to pass SFX warnings;
     a) Choose what to trace# apitrace onload.dll hook seems promising
-    b) Classify api by libs/ args# empty return value cause of temporary fix;
-    d) Expand arguments lookup in apicalls for different important functions -> done some, look at process creation routines
-    e) Unicode versions of functions aren't terminated by \x00, look into it; reg/str/etc
+    b) Classify api by libs/ args
+    d) Expand arguments lookup in apicalls for different important functions -> added many, some still unused, look at process creation routines
 
-3) a)Following new processes/threads -> look apitrace.py, it's ready implementation
-   b)Maybe add functions_hooker.add(funcaddr...) on GetProcAddress (run until return -> capture string with pointer in eax ? )
-   c)Self-modifying code vs breakpoints : look closely;
+3) a)Following new processes/threads -> look apitrace.py, it's ready implementation 
