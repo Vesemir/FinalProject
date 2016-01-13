@@ -236,13 +236,13 @@ def freezeVM(name='INetSim'):
 
 
 def run_cycled(work_dir='C:/workdir'):
-    #draw_samples()
+    draw_samples()
     ctr = 1
     for eachsample in glob.glob(os.path.join(SAMPLE_PATH, '*.zip')):
         print('[!] Launching {}\'th sample'.format(ctr))
         proc_name = os.path.basename(eachsample)
         startVM(snapshot='fixed')
-        startVM(name=WINVM, style='headless', snapshot='structure')
+        startVM(name=WINVM, style='gui', snapshot='passexception')
         copytoolstoVM(dest_dir=work_dir)
         copyfiletoVM(src_file=eachsample, dest_dir=work_dir)
         getapi = os.path.join(work_dir, GETAPI)
@@ -259,11 +259,15 @@ def run_cycled(work_dir='C:/workdir'):
         cur_log = os.path.join(VMLOGS_DIR,
                                os.path.splitext(proc_name)[0],
                                'apicalls.log')
+        cur_search = os.path.join(VMLOGS_DIR,
+                               os.path.splitext(proc_name)[0],
+                               'iatsearch.txt')
         sample_log = os.path.join(LOGS_PATH,
                                   os.path.splitext(proc_name)[0])
         if not os.path.isdir(sample_log):
             os.makedirs(sample_log)
         readfilefromVM(src_file=cur_log, dest_dir=sample_log)
+        readfilefromVM(src_file=cur_search, dest_dir=sample_log)
         freezeVM()
         freezeVM(name=WINVM)
         ctr += 1

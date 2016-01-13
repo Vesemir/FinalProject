@@ -1,5 +1,4 @@
-1)  0) aggregate all pycommands; after 0 is done, look, maybe add some hacks to pass SFX warnings;
-    a) Choose what to trace# apitrace onload.dll hook seems promising
+1)  a) Choose what to trace# apitrace onload.dll hook seems promising
     b) Classify api by libs/ args
     d) Expand arguments lookup in apicalls for different important functions -> added many, some still unused, look at process creation routines
 

@@ -13,7 +13,7 @@ from hidedebug import (Patch_PEB, Patch_IsDebuggerPresent,
                        Patch_FindWindow, Patch_EnumWindows)
 from mona import MnCommand, MnConfig, MnModule, MnPointer, MnLog
 
-#MnCommand("config","Manage configuration file (mona.ini)",configUsage,procConfig,"conf")
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from settings import LOGS_DIR, F_FILEOPEN, F_DESACCESS, F_SHAREMODE
 from settings import F_CLSCTX, F_FLANDATTRS, F_MOVFLAGS

@@ -1,2 +1,0 @@
-Should keep raw logs separated from processed ones, e.g.:
-API_log , INetSIM_log (.txt)| -> API_sequences (Pandas DataFrame?) -> | API_stats (DF) 
