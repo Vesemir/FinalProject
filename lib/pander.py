@@ -9,7 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pard
 
 from vbox.tools.PyCommands.settings import RAW_DIR
 
-lexem = p.some(lambda x: x.isalpha() or x.isdigit() or x in (':', ' ', '.', '\n'))
+lexem = p.some(lambda x: x.isalpha() or x.isdigit() or x in (':', ' ', '.', '\n', '\\', '_'))
 
 endl = p.skip(p.maybe(p.a('\n')))
 stars = p.skip(p.oneplus(p.a('*')))
@@ -24,7 +24,9 @@ def tuplicate(onecall):
     retval['dllname'] = lib
     retval['call'] = func
     for extraarg in sequence:
-        name, value = extraarg.split(':')
+        sep_pos = extraarg.find(':')
+        if sep_pos != -1:
+            name, value = extraarg[:sep_pos], extraarg[sep_pos+1:]
         name = name.replace('LOOKING UP', '').strip()
         retval[name] = value.strip()
     return retval
@@ -62,7 +64,7 @@ def fileparse(target):
         filepath = yield
         print('[!] There are logs for {} sample'.format(filepath))
         with open(filepath) as raw:
-            buff = raw.read()
+            buff = raw.read().replace('\x00', ' ')
             reslist = manycalls.parse(buff)
             target.send(DataFrame(reslist))
 
