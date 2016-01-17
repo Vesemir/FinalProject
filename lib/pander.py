@@ -26,6 +26,18 @@ stars = p.skip(p.oneplus(p.a('*')))
 
 concat = (lambda seq: ''.join(seq))
 
+def sequence_to_list(filename):
+    array = np.load(filename)
+    if not os.path.isfile(MAPPING):
+        print('[-] No mapping found to convert ..')
+        sys.exit(1)
+    with open(MAPPING, 'rb') as inp:
+        mapping = pickle.load(inp)
+        print("[!] Succesfully loaded mapping")
+    revmapping = {value: key for (key, value) in mapping.items()}
+    return '\n'.join(revmapping.get(each, 'Unk') for each in array)
+        
+
 
 def dframe_to_sequence(dframe, filename='sample'):
     print('Working with \n', dframe)
@@ -129,5 +141,5 @@ def main():
     raw_files(RAW_DIR, fileparse(sink()))
 
 if __name__ == '__main__':
-    main()
+    main()  
         
