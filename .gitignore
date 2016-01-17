@@ -4,3 +4,4 @@ __pycache__
 Virus*.zip
 *.log
 vbox/samples/
+vbox/logs

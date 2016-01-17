@@ -1,0 +1,10 @@
+1. Debugger vs Hooking DLL.
+2. CLI Debugger vs Immunity.
+3. Masquerade - ...?
+4. Packed PE.
+5. GUI-producing PE's.
+6. INetSIM logs - > ?
+7. INetSIM default pe -> track execution?
+8. Logging hook opens file on every bp -> ?
+N-1. Metrics -> VirusShare on MalShare?
+N. Cycled attach to all enumerable processes - ?.
