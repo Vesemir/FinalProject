@@ -1,4 +1,4 @@
-from immlib import LogBpHook, Debugger
+from immlib import LoadDLLHook, LogBpHook, Debugger
 import struct
 import random
 import re
@@ -96,7 +96,7 @@ def procGetxAT(dbg, mode='iat'):
     thisxat = {}
     entriesfound = 0
 
-    keywordstring = 'kernel32.*,user32.*,shell32.*,advapi32.*'
+    keywordstring = 'kernel32.*,user32.*,shell32.*,advapi32.*'# gdi32.*,samcli.*,apphelp.*,
 
     keywords = keywordstring.split(",")
 
@@ -226,6 +226,26 @@ def function_dict(path):
     return f_dict
 
 
+class ExportHook(LoadDLLHook):
+    def __init__(self, fdict, logspath):
+        LoadDLLHook.__init__(self)
+        self.imm = Debugger()
+        self.hooker = CallGetter(fdict, logspath)
+
+    def run(self, regs):
+        event = self.imm.getEvent()
+        p_modulename = event.lpImageName
+        modulename = self.imm.readWString(p_modulename)
+        self.imm.log("Module got loaded : {}".format(modulename))
+        module = self.imm.getModule(modulename)
+        self.imm.analyseCode(module.getCodebase())
+        extra_funcs = self.imm.getAllFunctions(module.getCodebase())
+        for funcaddr in extra_funcs:
+            function = self.imm.getFunction(funcaddr)
+            funcname = self.imm.decodeAddress(func)
+            self.hooker.add(funcname, funcaddr)
+
+
 class CallGetter(LogBpHook):
     def __init__(self, func_dict, logspath):
         self.imm = Debugger()
@@ -252,7 +272,6 @@ class CallGetter(LogBpHook):
         self.save_test_case(pos, arg1, extraargs)
 
     def get_extra_args(self, extra, pos, bp_decoded, regs, read_str):
-        
         extra['callname'] = bp_decoded
         if 'loadlibrary' in bp_decoded:
             p_libname = self.imm.readLong(regs['ESP'] + 4)
@@ -425,6 +444,8 @@ def main(args):
     logspath = args[0]
     path = os.path.join(logspath, "iatsearch.txt")
     functions_dict = function_dict(path)
+    #loaddll_hook = ExportHook(functions_dict, logspath) # doesn't work 
+    #loaddll_hook.add("Generic DLL handler")
     functions_hooker = CallGetter(functions_dict, logspath)
     imp_func = important_functions()
     dump = ''
@@ -432,5 +453,6 @@ def main(args):
         if 'CmdLine' in funcname:
             print(address, funcname)
         #if funcname.split('.')[1] in imp_func:
+        #if not 'rtl' in funcname:
         functions_hooker.add( "%08x" % address, address)
     return "[*] API calls hooker enabled!"

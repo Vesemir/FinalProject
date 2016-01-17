@@ -1,5 +1,5 @@
-1)  a) Choose what to trace# apitrace onload.dll hook seems promising
+1)  a) Choose what to trace# apitrace onload.dll hook seems promising # maybe try analize each new loaded dll
     b) Classify api by libs/ args
     d) Expand arguments lookup in apicalls for different important functions -> added many, some still unused, look at process creation routines
 
-3) a)Following new processes/threads -> look apitrace.py, it's ready implementation 
+3) a)Following new processes -> look apitrace.py
