@@ -244,10 +244,10 @@ def run_cycled(work_dir='C:/workdir'):
     ctr = 1
     success_ctr = 0
     for eachsample in glob.glob(os.path.join(SAMPLE_PATH, '*.zip')):
-        print('[!] Launching {}\'th sample ({}/{} succesful)'.format(ctr, success_ctr, ctr-1)))
+        print('[!] Launching {}\'th sample ({}/{} succesful)'.format(ctr, success_ctr, ctr-1))
         proc_name = os.path.basename(eachsample)
         startVM(snapshot='fixed')
-        startVM(name=WINVM, style='headless', snapshot='passexception')
+        startVM(name=WINVM, style='headless', snapshot='masquedmore')
         copytoolstoVM(dest_dir=work_dir)
         copyfiletoVM(src_file=eachsample, dest_dir=work_dir)
         getapi = os.path.join(work_dir, GETAPI)
@@ -259,7 +259,7 @@ def run_cycled(work_dir='C:/workdir'):
                                work_dir, proc_name
                                )
                            ),
-                       timeoutMS=120000)
+                       timeoutMS=150000)
         
         cur_log = os.path.join(VMLOGS_DIR,
                                os.path.splitext(proc_name)[0],

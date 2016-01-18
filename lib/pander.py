@@ -35,8 +35,7 @@ def sequence_to_list(filename):
         mapping = pickle.load(inp)
         print("[!] Succesfully loaded mapping")
     revmapping = {value: key for (key, value) in mapping.items()}
-    return '\n'.join(revmapping.get(each, 'Unk') for each in array)
-        
+    return '\n'.join(revmapping.get(each, 'Unk') for each in array)        
 
 
 def dframe_to_sequence(dframe, filename='sample'):
@@ -56,7 +55,6 @@ def dframe_to_sequence(dframe, filename='sample'):
         if query_mapping:
             print("[!] Using cached value of {}".format(record))
             current.append(query_mapping)
-        
         else:
             print("[!] Got new func : {}".format(record))
             curlen = len(mapping) + 1
@@ -102,16 +100,18 @@ def coroutine(func):
     return wrapper
 
 
-def calc_agg(lis):
-    print(lis.groupby('call').size())
+def calc_agg(name, lis):
+    grouped = lis.groupby('call').size()
+    grouped.to_pickle(os.path.join(SVM_LOGS, name))
+    print('[+] Pickled SVM log for {}'.format(name))
 
 
 @coroutine
 def sink():
     while True:
         name, df = yield
-        calc_agg(df)
-        dframe_to_sequence(df, filename=name)
+        calc_agg(name, df)
+        #dframe_to_sequence(df, filename=name)
         
     
 
