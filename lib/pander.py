@@ -18,8 +18,9 @@ SEQ_LOGS = os.path.join(CURDIR, 'seq_analyzer', 'datas')
 for each in (SVM_LOGS, SEQ_LOGS):
     if not os.path.isdir(each):
         os.makedirs(each)
+punctuation = (':', ' ', '.', '\n', '\\', '_', '{', '}', '-')
 
-lexem = p.some(lambda x: x.isalpha() or x.isdigit() or x in (':', ' ', '.', '\n', '\\', '_'))
+lexem = p.some(lambda x: x.isalpha() or x.isdigit() or x in punctuation)
 
 endl = p.skip(p.maybe(p.a('\n')))
 stars = p.skip(p.oneplus(p.a('*')))
@@ -101,6 +102,7 @@ def coroutine(func):
 
 
 def calc_agg(name, lis):
+    print(lis)
     grouped = lis.groupby('call').size()
     grouped.to_pickle(os.path.join(SVM_LOGS, name))
     print('[+] Pickled SVM log for {}'.format(name))
@@ -111,7 +113,7 @@ def sink():
     while True:
         name, df = yield
         calc_agg(name, df)
-        #dframe_to_sequence(df, filename=name)
+        dframe_to_sequence(df, filename=name)
         
     
 
@@ -124,7 +126,11 @@ def fileparse(target):
             buff = raw.read().replace('\x00', ' ')
             reslist = manycalls.parse(buff)
             samplename = os.path.basename(os.path.dirname(filepath))
-            target.send((samplename, DataFrame(reslist)))
+            if reslist:
+                target.send((samplename, DataFrame(reslist)))
+            else:
+                assert False, 'LOOK EHRE : {}'.format(samplename.upper())
+                print("[-] Could not be parsed {}".format(samplename))
 
 
 def raw_files(logdir, fileparser):
@@ -141,5 +147,6 @@ def main():
     raw_files(RAW_DIR, fileparse(sink()))
 
 if __name__ == '__main__':
-    main()  
+    main()
+    
         
