@@ -6,3 +6,4 @@ Virus*.zip
 *.log
 vbox/samples/
 vbox/logs
+lib/*/datas
