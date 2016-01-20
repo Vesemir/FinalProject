@@ -64,7 +64,7 @@ def focusdebugger(pid):
 def rundebuggee(sample):
     print("[!] Running debuggee ..")
     dbg = subprocess.Popen([IMMUNITY_PATH, sample])
-    time.sleep(12)
+    time.sleep(10)
     #focusdebugger(dbg.pid) doesn't work in vbox for some reason
     print("[+] Done.")
 
