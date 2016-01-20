@@ -6,6 +6,7 @@ import sys
 import glob
 import funcparserlib.parser as p
 import pickle
+from collections import deque
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
 
 from vbox.tools.PyCommands.settings import RAW_DIR
@@ -27,8 +28,11 @@ stars = p.skip(p.oneplus(p.a('*')))
 
 concat = (lambda seq: ''.join(seq))
 
-def sequence_to_list(filename):
-    array = np.load(filename)
+def sequence_to_list(src):
+    if isinstance(src, str):
+        array = np.load(src)
+    elif isinstance(src, (deque, list, tuple)):
+        array = src
     if not os.path.isfile(MAPPING):
         print('[-] No mapping found to convert ..')
         sys.exit(1)
@@ -36,7 +40,7 @@ def sequence_to_list(filename):
         mapping = pickle.load(inp)
         print("[!] Succesfully loaded mapping")
     revmapping = {value: key for (key, value) in mapping.items()}
-    return '\n'.join(revmapping.get(each, 'Unk') for each in array)        
+    return ' -> '.join(revmapping.get(each, 'Unk') for each in array)        
 
 
 def dframe_to_sequence(dframe, filename='sample'):

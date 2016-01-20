@@ -1,6 +1,17 @@
+import numpy as np
+import os
+import sys
+import glob
+
 from itertools import chain
 from collections import deque
 
+
+
+CURDIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(CURDIR, os.pardir))
+from pander import sequence_to_list
+SEQ_LOGS = os.path.join(CURDIR, 'datas')
 
 SCORE_MATCH = 10
 SCORE_EMPTY = -1
@@ -85,3 +96,24 @@ def compute_alignment_helper(seq_x, seq_y, diag=10, off_diag=0, dash=-1):
     #scoring_mat = build_scoring_matrix(alphabet, diag, off_diag, dash)
     align_mat = compute_alignment_matrix(seq_x, seq_y, 0)
     return compute_local_alignment(seq_x, seq_y, align_mat)
+
+
+def search_samples(name_1, name_2):
+    seq_1 = np.load(name_1)
+    seq_2 = np.load(name_2)
+    #print("[!] Searching {} \n {}".format(seq_1, seq_2))
+    res = compute_alignment_helper(seq_1, seq_2)
+    if res[0] >= 100:
+        print("*" * 20 + "\nSCORE : {}\n\n{} : {}\n{} : {}\n".format(
+            res[0], name_1, sequence_to_list(res[1]),
+            name_2, sequence_to_list(res[2])
+            )
+              )
+    
+
+def test_match():
+    for fil in glob.glob(os.path.join(SEQ_LOGS, '*')):
+        for otherfil in glob.glob(os.path.join(SEQ_LOGS, '*')):
+            if fil != otherfil:
+                search_samples(fil, otherfil)
+
