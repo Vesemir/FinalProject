@@ -1,4 +1,8 @@
 from itertools import chain
+from collections import deque
+
+
+ALPH = [each for each in range(1, 100)]
 
 
 def build_scoring_matrix(alphabet, diag_score, off_diag_score, dash_score):
@@ -34,7 +38,7 @@ def compute_alignment_matrix(seq_x, seq_y, scoring_matrix, global_flag):
 def compute_local_alignment(seq_x, seq_y, scoring_matrix, alignment_matrix):
     maxpos = max(((hoel, (idx, jdx)) for idx, line in enumerate(alignment_matrix) for (jdx, hoel) in enumerate(line) ), key=lambda x: x[0])
     idx, jdx = maxpos[1]
-    xslash, yslash = '', ''
+    xslash, yslash = deque(), deque()
     total = 0
     while idx and jdx:
         if alignment_matrix[idx][jdx] == 0:
@@ -42,29 +46,36 @@ def compute_local_alignment(seq_x, seq_y, scoring_matrix, alignment_matrix):
         total = max(total, alignment_matrix[idx][jdx])
         if alignment_matrix[idx][jdx] == alignment_matrix[idx-1][jdx-1] +\
            scoring_matrix[seq_x[idx-1]][seq_y[jdx-1]]:
-            xslash = seq_x[idx-1] + xslash
-            yslash = seq_y[jdx-1] + yslash
+            xslash.appendleft(seq_x[idx-1])
+            yslash.appendleft(seq_y[jdx-1])
             idx -= 1
             jdx -= 1
         elif alignment_matrix[idx][jdx] == alignment_matrix[idx-1][jdx] +\
              scoring_matrix[seq_x[idx-1]]['-']:
-            xslash = seq_x[idx-1] + xslash
-            yslash = '-' + yslash
+            xslash.appendleft(seq_x[idx-1])
+            yslash.appendleft('-')
             idx -= 1
         else:
-            xslash  = '-' + xslash
-            yslash = seq_y[jdx-1] + yslash
+            xslash.appendleft('-')
+            yslash.appendleft(seq_y[jdx-1])
             jdx -= 1
     while idx != 0:
         if alignment_matrix[idx][jdx] == 0:
             break
-        xslash = seq_x[idx-1] + xslash
-        yslash = '-' + yslash
+        xslash.appendleft(seq_x[idx-1])
+        yslash.appendleft('-')
         idx -= 1
     while idx != 0:
         if alignment_matrix[idx][jdx] == 0:
             break
-        xslash = '-' + xslash
-        yslash = seq_y[jdx-1] + yslash
+        xslash.appendleft('-')
+        yslash.appendleft(seq_y[jdx-1])
         jdx -= 1
     return total, xslash, yslash
+
+
+
+def compute_alignment_helper(seq_x, seq_y, alphabet=ALPH, diag=5, off_diag=1, dash=-2):
+    scoring_mat = build_scoring_matrix(alphabet, diag, off_diag, dash)
+    align_mat = compute_alignment_matrix(seq_x, seq_y, scoring_mat, 0)
+    return compute_local_alignment(seq_x, seq_y, scoring_mat, align_mat)
