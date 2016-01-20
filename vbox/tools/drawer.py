@@ -11,6 +11,18 @@ def filterPE(pfile):
         dec = candy.read(2)
         if dec != b'MZ':
             return False
+        candy.seek(0x3c)
+        pos = int.from_bytes(candy.read(4), 'little')
+        candy.seek(pos)
+        peheader = candy.read(4)
+        if peheader != b'PE\x00\x00':
+            return False
+        platform = candy.read(2)
+        if platform == b'\x64\x86':
+            print('[-] {} is compiled for x64'.format(pfile))
+            return False
+        if platform != b'\x4c\x01':
+            return False       
     return True
 
 

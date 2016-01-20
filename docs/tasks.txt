@@ -1,8 +1,5 @@
-1)  a) Choose what to trace -> look apitrace.py # kernel32 tracing supplemented by user32, since some viruses obviously don't use kernel32
-    b) Classify api by libs/ args.
-    c) Dict for those classified apis to fit in Pandas dframe
-    d) Expand arguments lookup in apicalls for different important functions, like GetDirectory -> look for systempaths in it
-    e) Look at UPX'ed run results -> investigate further (seems, Imm founds out it's packed).
+1)  a) Choose what to trace# apitrace onload.dll hook seems promising # maybe try analize each new loaded dll
+    b) Classify api by libs/ args
+    d) Expand arguments lookup in apicalls for different important functions -> added many, some still unused, look at process creation routines
 
-3) Following new processes/threads -> look apitrace.py, it's ready implementation
-
+3) a)Following new processes -> look apitrace.py

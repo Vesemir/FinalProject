@@ -25,9 +25,9 @@ CHUNKSIZE = 4096
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 PYTHON = r'C:/Python27/python.exe'
 
-WINVM = 'Agent_01'
-LOGIN = 'John'
-PASSWORD = '123'
+WINVM = 'TempOS'
+LOGIN = 'One'
+PASSWORD = '1'
 
 LINUXVM = 'INetSim'
 
@@ -136,6 +136,7 @@ def readfilefromVM(name=WINVM,
                    dest_dir='Q:/compilers/',
                    username=LOGIN,
                    password=PASSWORD):
+    success = None
     filename = os.path.basename(src_file)
     dest_file = os.path.join(dest_dir, filename)
     machine = VBOX.findMachine(name)
@@ -163,13 +164,16 @@ def readfilefromVM(name=WINVM,
         print('[+] Succesfully copied to host {} from {}\'s {}'.format(
             dest_file, name, src_file)
               )
+        success = True
     except Exception as e:
         print("[-] Couldn't read specified file {} on {} machine, {}".format(
             src_file, name, str(e))
               )
+        success = False
     finally:
         mysession.close()
         session.unlockMachine()
+        return success
 
 
 def runprocessonVM(name=WINVM,
@@ -236,11 +240,14 @@ def freezeVM(name='INetSim'):
 
 
 def run_cycled(work_dir='C:/workdir'):
-    #draw_samples()
+    draw_samples(num=20)
+    ctr = 1
+    success_ctr = 0
     for eachsample in glob.glob(os.path.join(SAMPLE_PATH, '*.zip')):
+        print('[!] Launching {}\'th sample ({}/{} succesful)'.format(ctr, success_ctr, ctr-1))
         proc_name = os.path.basename(eachsample)
         startVM(snapshot='fixed')
-        startVM(name=WINVM, style='headless', snapshot='ready')
+        startVM(name=WINVM, style='headless', snapshot='masquedmore')
         copytoolstoVM(dest_dir=work_dir)
         copyfiletoVM(src_file=eachsample, dest_dir=work_dir)
         getapi = os.path.join(work_dir, GETAPI)
@@ -252,15 +259,22 @@ def run_cycled(work_dir='C:/workdir'):
                                work_dir, proc_name
                                )
                            ),
-                       timeoutMS=120000)
-        time.sleep(45)
+                       timeoutMS=150000)
+        
         cur_log = os.path.join(VMLOGS_DIR,
                                os.path.splitext(proc_name)[0],
                                'apicalls.log')
+        cur_search = os.path.join(VMLOGS_DIR,
+                               os.path.splitext(proc_name)[0],
+                               'iatsearch.txt')
         sample_log = os.path.join(LOGS_PATH,
                                   os.path.splitext(proc_name)[0])
         if not os.path.isdir(sample_log):
             os.makedirs(sample_log)
-        readfilefromVM(src_file=cur_log, dest_dir=sample_log)
+        done = readfilefromVM(src_file=cur_log, dest_dir=sample_log)
+        if done:
+            success_ctr += 1
+        readfilefromVM(src_file=cur_search, dest_dir=sample_log)
         freezeVM()
         freezeVM(name=WINVM)
+        ctr += 1

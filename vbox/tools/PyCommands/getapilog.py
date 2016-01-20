@@ -80,18 +80,18 @@ def executePyCommands(sample):
     SHELL.SendKeys("%{Tab}")
     SHELL.AppActivate("Immunity Debugger")
     SHELL.SendKeys("%{F1}")
-    #check_layout(SHELL)
-    PyCommand("!hidedebug All_Debug")
-    PyCommand("!hidedebug All_Process")
-    PyCommand("!hidedebug All_Window")
-    PyCommand("!mona config -set workingfolder " + LOGS_DIR + "{%}p")
-    PyCommand('!mona getiat -s "kernel32.*,user32.*,shell32.*,advapi32.*"')
-    PyCommand('!mona bf -t ADD -f import -s "kernel32.*,user32.*,shell32.*,advapi32.*"')
-    PyCommand("!logginghook %s" % logpath)
-    for _ in range(100):
-        time.sleep(1)
-        SHELL.SendKeys("{F9}")
     
+    #check_layout(SHELL)
+    #PyCommand("!hidedebug All_Debug")
+    #PyCommand("!hidedebug All_Process")
+    #PyCommand("!hidedebug All_Window")
+    #PyCommand("!mona config -set workingfolder " + LOGS_DIR + "{%}p")
+    #PyCommand('!mona getiat -s "kernel32.*,user32.*,shell32.*,advapi32.*"')
+    PyCommand("!logginghook %s" % logpath)
+    for _ in range(99999):
+        time.sleep(0.01)
+        SHELL.SendKeys("{F9}")
+        
 
 def main():
     if not len(sys.argv) > 1:
