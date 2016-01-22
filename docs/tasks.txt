@@ -1,5 +1,12 @@
 1)  a) Choose what to trace# apitrace onload.dll hook seems promising # maybe try analize each new loaded dll
     b) Classify api by libs/ args
     d) Expand arguments lookup in apicalls for different important functions -> added many, some still unused, look at process creation routines
-
+2) Add following APIs for tracing:
+    a) zwsystemdebugcontrol / writekernelmemory(rootkit-usable)
+    b) createtoolhelp32snapshot / ntquerysysteminformation;
+    c) getcurrentprocessid
+    d) all those memory-allocating (VirtualAlloc, VirtualAllocEx, especially their flags)
+    e) chains like GetVersionExW -> GetCurrentProcess ->OpenProcessToken -> GetTokenInformation -> GetModuleFileNameW -> ShellExecuteExW
+    g) maybe try adding Chain searchs, like:
+       e.g. HollowProcessTrick : CreateProcess(CREATE_SUSPENDED) -> ?ReadFile? -> GetModuleHandle(?'ntdll.dll') -> GetProcAddress('NtUnmapViewOfSection') -> VirtualAllocEx(MEM_COMMIT | MEM_RESERVE |PAGE_EXECUTE_READWRITE) -> WriteProcessMemory -> (many)WriteProcessMemory -> GetThreadContext -> SetThreadContext -> ResumeThread
 3) a)Following new processes -> look apitrace.py
