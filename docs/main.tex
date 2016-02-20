@@ -1,5 +1,6 @@
 \documentclass[a4paper,12pt]{article}
 
+
 \usepackage[utf8] {inputenc}
 \usepackage[russian] {babel}
 \usepackage[left=3cm,right=1cm,top=2cm,bottom=2cm] {geometry}
@@ -25,4 +26,8 @@
 	\input {chapter1.tex}
 	\clearpage
 	\input {chapter2.tex}
+	\clearpage
+	\renewcommand{\refname}{Список использованных источников}
+	\bibliography{sources}
+	\bibliographystyle{ieeetr}
 \end {document}
