@@ -1,6 +1,9 @@
 __pycache__
 *.pyc
-~$*.docx
+*.pdf
+*.toc
+*.aux
+*.synctex.gz
 ~$*vsd
 Virus*.zip
 *.log

@@ -1,0 +1,26 @@
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[utf8] {inputenc}
+\usepackage[russian] {babel}
+\usepackage[left=3cm,right=1cm,top=2cm,bottom=2cm] {geometry}
+\linespread {1.5}
+\usepackage {indentfirst}
+\setlength {\parindent}{1cm}
+\usepackage {amsmath}
+\usepackage {graphicx}
+\usepackage {ccaption}
+\usepackage {topcapt}
+\captiondelim{. }
+\title {Название работы}
+\date {2016-01-01}
+\author {by myself!}
+
+\begin {document}
+	\pagenumbering {gobble}
+	\maketitle
+	\clearpage
+	\tableofcontents
+	\clearpage
+	\pagenumbering {arabic}
+	\input {chapter1.tex}
+\end {document}
