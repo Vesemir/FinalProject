@@ -13,6 +13,14 @@
 \usepackage {graphicx}
 \usepackage {ccaption}
 \usepackage {topcapt}
+\usepackage {listings}
+\lstdefinestyle{masm}{
+	belowcaptionskip=1\baselineskip,
+	frame=L,
+	xleftmargin=\parindent,
+	language=[x86masm]Assembler,
+	basicstyle=\footnotesize\ttfamily
+}
 \captiondelim{. }
 \title {Название работы}
 \date {2016-01-01}
@@ -25,6 +33,8 @@
 	\pagenumbering {arabic}
 	\setcounter{page}{2}
 	\tableofcontents
+	\clearpage
+	\input {introduction.tex}
 	\clearpage
 	\input {chapter1.tex}
 	\clearpage
