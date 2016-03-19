@@ -40,7 +40,7 @@ def sequence_to_list(src):
         mapping = pickle.load(inp)
         print("[!] Succesfully loaded mapping")
     revmapping = {value: key for (key, value) in mapping.items()}
-    return ' -> '.join(revmapping.get(each, 'Unk') for each in array)        
+    return ' -> '.join(revmapping.get(each, 'Unk') if each != '-' else 'Skipped' for each in array)        
 
 
 def dframe_to_sequence(dframe, filename='sample'):

@@ -3,7 +3,7 @@ import os
 import sys
 import glob
 
-from itertools import chain
+from itertools import chain, combinations
 from collections import deque
 
 
@@ -103,17 +103,16 @@ def search_samples(name_1, name_2):
     seq_2 = np.load(name_2)
     #print("[!] Searching {} \n {}".format(seq_1, seq_2))
     res = compute_alignment_helper(seq_1, seq_2)
-    if res[0] >= 100:
-        print("*" * 20 + "\nSCORE : {}\n\n{} : {}\n{} : {}\n".format(
-            res[0], name_1, sequence_to_list(res[1]),
-            name_2, sequence_to_list(res[2])
+    if res[0] >= 85:
+        print("*" * 20 + "\nSCORE : {}\n\n{} :\n {}\n{} :\n {}\n".format(
+            res[0], os.path.basename(name_1), sequence_to_list(res[1]),
+            os.path.basename(name_2), sequence_to_list(res[2])
             )
               )
     
 
 def test_match():
-    for fil in glob.glob(os.path.join(SEQ_LOGS, '*')):
-        for otherfil in glob.glob(os.path.join(SEQ_LOGS, '*')):
-            if fil != otherfil:
-                search_samples(fil, otherfil)
+    for fil, otherfil in combinations(glob.glob(os.path.join(SEQ_LOGS, '*')), 2):
+        if fil != otherfil:
+            search_samples(fil, otherfil)
 
