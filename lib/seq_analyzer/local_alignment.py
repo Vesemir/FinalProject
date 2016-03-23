@@ -83,7 +83,7 @@ def compute_local_alignment(seq_x, seq_y, alignment_matrix):
         xslash.appendleft(seq_x[idx-1])
         yslash.appendleft('-')
         idx -= 1
-    while idx != 0:
+    while jdx != 0:
         if alignment_matrix[idx][jdx] == 0:
             break
         xslash.appendleft('-')
