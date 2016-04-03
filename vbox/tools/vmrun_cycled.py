@@ -2,6 +2,9 @@ import vboxapi
 import os
 import glob
 import time
+import threading
+import queue
+from contextlib import contextmanager
 #this one should complete a routine:
 ## Take a sample from samples/ directory +
 #1. Start Linux host from clear prepared snapshot + 
@@ -43,10 +46,38 @@ KIT = ('getapilog.py',
        )
 GETAPI = 'getapilog.py'
 
+PRINT_LOCK = threading.Semaphore(1)
+AGENT_POOL = queue.Queue()
+
+oldprint = __builtins__.print
+
+
 vbmanager = vboxapi.VirtualBoxManager(None, None)
 CONST = vbmanager.constants
 VBOX = vbmanager.vbox
 REMOTE = vbmanager.remote
+LOG_LEVEL = 'debug'
+
+LEVELS = {'debug': 1,
+          'trace': 0}
+
+_agent = lambda x, y, z, t: dict(name=x, login=y, password=z, snapshot=t)
+
+
+@contextmanager
+def safeprint(lock):
+    lock.acquire()
+    yield
+    lock.release()
+
+
+def newprint(val, level='debug', *args, **kwargs):
+    with safeprint(PRINT_LOCK):
+        if LEVELS.get(level) >= LEVELS.get(LOG_LEVEL):
+            oldprint(val, *args, **kwargs)
+
+
+__builtins__.print = newprint
 
 
 assert os.path.isdir(SAMPLE_PATH)
@@ -69,22 +100,27 @@ def startVM(name=LINUXVM, style='headless', snapshot='Working INetSIM'):
     print('[+] Machine {} started.'.format(name))
 
 
-def copytoolstoVM(dest_dir='C:/foo'):
-    print('[!] Copying toolkit for debuggee...')
+def copytoolstoVM(name=WINVM,
+                  dest_dir='C:/foo', username=None, password=None):
+    print('[!] Copying toolkit for debuggee...', 'trace')
     for tool in KIT:
         toolpath = os.path.join(CURDIR, KIT_DIR, tool)
-        copyfiletoVM(src_file=toolpath, dest_dir=IMMUNITY_DIR)
+        copyfiletoVM(name=name,
+                     src_file=toolpath, dest_dir=IMMUNITY_DIR,
+                     username=username, password=password)
         if any(val in toolpath for val in ('settings', 'getapilog', 'zipper')):
-            copyfiletoVM(src_file=toolpath, dest_dir=dest_dir)
-    print('[+] Done.')
+            copyfiletoVM(name=name,
+                         src_file=toolpath, dest_dir=dest_dir,
+                         username=username, password=password)
+    print('[+] Done.', level='trace')
 
 
 def deploytoolstoVM(dest_dir='C:/foo'):
-    print('[!] Deploying tools ...')
+    print('[!] Deploying tools ...', level='trace')
     for packet in glob.glob(os.path.join(DEPLOY_DIR, '*')):
         if not 'tar.gz' in packet:
             copyfiletoVM(src_file=packet, dest_dir=dest_dir)
-    print('[+] Done.')
+    print('[+] Done.', level='trace')
 
 
 def copyfiletoVM(name=WINVM,
@@ -120,7 +156,7 @@ def copyfiletoVM(name=WINVM,
                 chunk = inp.read(CHUNKSIZE)
         pFile.close()
         print('[+] Succesfully copied from host {} to {}\' {}'.format(
-            src_file, name, dest_file)
+            src_file, name, dest_file), level='trace'
               )
     except Exception as e:
         print("[-] Couldn't create specified file {} on {} machine, {}".format(
@@ -186,12 +222,14 @@ def runprocessonVM(name=WINVM,
     argarray = ['']
     if args != '':
         argarray = ['', args['command'], args['file']]
-    print("[!] Running command :  {} {}".format(dest_file, ' '.join(argarray)))
+    print("[!] Running command :  {} {}".format(dest_file, ' '.join(argarray)),
+          level='trace')
     machine = VBOX.findMachine(name)
     session = vbmanager.openMachineSession(machine)
     guest = session.console.guest
     mysession = guest.createSession(username, password, '', session)
-    print("[!] Protocol version of VBService is {}".format(mysession.protocolVersion))
+    print("[!] Protocol version of VBService is {}".format(
+        mysession.protocolVersion), level='trace')
     response = mysession.WaitFor(CONST.GuestSessionWaitForFlag_Start, 0)
     try:
         if response != 1:
@@ -205,14 +243,14 @@ def runprocessonVM(name=WINVM,
             timeoutMS)
         process.WaitFor(CONST.ProcessWaitForFlag_Start, 0)
         print('[+] Succesfully started {} with PID {}'.format(
-            dest_file, process.PID)
+            dest_file, process.PID), level='trace'
               )
         res = process.WaitFor(CONST.ProcessWaitForFlag_Terminate, timeoutMS)
         if res not in (CONST.ProcessWaitResult_Terminate,
                        CONST.ProcessWaitResult_Timeout):
             raise Exception("[-] Unknown status {}".format(res))
         print('[+] Succesfully terminated process {}'.format(
-            dest_file)
+            dest_file), level='trace'
               )
     except Exception as e:
         print("[-] Couldn't start specified file {} on {} machine, {}".format(
@@ -239,42 +277,92 @@ def freezeVM(name='INetSim'):
     print('[+] Machine {} stopped.'.format(name))
 
 
-def run_cycled(work_dir='C:/workdir'):
-    draw_samples(num=20)
-    ctr = 1
-    success_ctr = 0
-    for eachsample in glob.glob(os.path.join(SAMPLE_PATH, '*.zip')):
-        print('[!] Launching {}\'th sample ({}/{} succesful)'.format(ctr, success_ctr, ctr-1))
-        proc_name = os.path.basename(eachsample)
-        startVM(snapshot='fixed')
-        startVM(name=WINVM, style='headless', snapshot='masquedmore')
-        copytoolstoVM(dest_dir=work_dir)
-        copyfiletoVM(src_file=eachsample, dest_dir=work_dir)
-        getapi = os.path.join(work_dir, GETAPI)
-        runprocessonVM(dest_file=PYTHON,
-                       work_dir=work_dir,
-                       args=dict(
-                           command=getapi,
-                           file=os.path.join(
-                               work_dir, proc_name
-                               )
-                           ),
-                       timeoutMS=150000)
-        
-        cur_log = os.path.join(VMLOGS_DIR,
-                               os.path.splitext(proc_name)[0],
-                               'apicalls.log')
-        cur_search = os.path.join(VMLOGS_DIR,
-                               os.path.splitext(proc_name)[0],
-                               'iatsearch.txt')
-        sample_log = os.path.join(LOGS_PATH,
-                                  os.path.splitext(proc_name)[0])
-        if not os.path.isdir(sample_log):
-            os.makedirs(sample_log)
-        done = readfilefromVM(src_file=cur_log, dest_dir=sample_log)
-        if done:
-            success_ctr += 1
-        readfilefromVM(src_file=cur_search, dest_dir=sample_log)
-        freezeVM()
-        freezeVM(name=WINVM)
-        ctr += 1
+def run_sample(samplepath, adict,
+               timeout=150000, work_dir='C:/workdir'):
+    agent, login, password, snapshot = \
+           adict['name'], adict['login'], adict['password'], adict['snapshot']
+    
+    proc_name = os.path.basename(samplepath)
+    startVM(name=agent, style='headless', snapshot=snapshot)
+    copytoolstoVM(name=agent,
+                  dest_dir=work_dir,
+                  username=login,
+                  password=password)
+    copyfiletoVM(name=agent,
+                 src_file=samplepath,
+                 dest_dir=work_dir,
+                 username=login,
+                 password=password)
+    getapi = os.path.join(work_dir, GETAPI)
+    runprocessonVM(name=agent,
+                   dest_file=PYTHON,
+                   work_dir=work_dir,
+                   args=dict(
+                       command=getapi,
+                       file=os.path.join(
+                           work_dir, proc_name
+                           )
+                       ),
+                   timeoutMS=timeout,
+                   username=login,
+                   password=password)
+    cur_log = os.path.join(VMLOGS_DIR,
+                           os.path.splitext(proc_name)[0],
+                           'apicalls.log')
+    cur_search = os.path.join(VMLOGS_DIR,
+                           os.path.splitext(proc_name)[0],
+                           'iatsearch.txt')
+    sample_log = os.path.join(LOGS_PATH,
+                              os.path.splitext(proc_name)[0])
+    if not os.path.isdir(sample_log):
+        os.makedirs(sample_log)
+    done = readfilefromVM(name=agent,
+                          username=login,
+                          password=password,
+                          src_file=cur_log, dest_dir=sample_log)
+    readfilefromVM(name=agent,
+                   src_file=cur_search,
+                   dest_dir=sample_log,
+                   username=login,
+                   password=password)
+    freezeVM(name=agent)
+    AGENT_POOL.put(adict)
+
+
+def run_cycled():
+    draw_samples(num=100)
+    startVM(name=LINUXVM, snapshot='fixed')
+    pool = [_agent('TempOS', 'One', '1', 'masquedmore'),
+            _agent('TempOS_2', 'One', '1', 'masquedmore'),
+            ]
+    for agent in pool:
+        AGENT_POOL.put(agent)
+    job_pool = glob.glob(os.path.join(SAMPLE_PATH, '*.zip'))
+    thread_pool = []
+    while job_pool:
+        try:
+            ready_agent = AGENT_POOL.get(timeout=15)
+            print('[!] Got free agent: {}'.format(ready_agent))
+            nextsample = job_pool.pop()
+            work_thr = threading.Thread(
+                name='working_{}'.format(ready_agent['name']),
+                target=run_sample, args=(nextsample, ready_agent)
+                )
+            print('[!] Executing job on {}...'.format(ready_agent))
+            work_thr.start()
+            thread_pool.append(work_thr)
+        except queue.Empty:
+            print('[-] Out of agents, idling for now ...')
+            print('[!] Waiting everyone to finish ...')
+            for thread in thread_pool:
+                thread.join()
+                print('[+] {} succesfully stopped'.format(thread))
+            thread_pool.clear()
+            print('[!] Everyone is ready again !')
+            time.sleep(5)
+    print('[!] Waiting everyone to finish ...')
+    for thread in thread_pool:
+        thread.join()
+        print('[+] {} succesfully stopped'.format(thread))
+    print('[+] Jobs are done!')
+    freezeVM(LINUXVM)

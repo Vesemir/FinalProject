@@ -1,4 +1,0 @@
-Found 3 sites presenting free samples:
-1)VirusShare (started downloading torrents, about 23 * 10^6 promised samples);
-2)MalShare (promised 1000 a day, set a job to run and collect them);
-3)VirusSign (download seems to crash, maybe ignore them entirely, since it's probably already enough);
