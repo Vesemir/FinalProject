@@ -31,8 +31,9 @@ PYTHON = r'C:/Python27/python.exe'
 WINVM = 'TempOS'
 LOGIN = 'One'
 PASSWORD = '1'
-
 LINUXVM = 'INetSim'
+
+WORK_TIMEOUT = 120000
 
 IMMUNITY_DIR = os.path.join(os.path.dirname(IMMUNITY_PATH), 'PyCommands')
 MONA = os.path.join(IMMUNITY_DIR, 'mona.py')
@@ -97,7 +98,7 @@ def startVM(name=LINUXVM, style='headless', snapshot='Working INetSIM'):
     progress = machine.launchVMProcess(session, style, '')
     progress.waitForCompletion(-1)
     session.unlockMachine()
-    print('[+] Machine {} started.'.format(name))
+    print('[+] Machine {} started'.format(name))
 
 
 def copytoolstoVM(name=WINVM,
@@ -274,11 +275,12 @@ def freezeVM(name='INetSim'):
     console = session.console
     progress = console.powerDown()
     progress.waitForCompletion(-1)
-    print('[+] Machine {} stopped.'.format(name))
+    session.unlockMachine()
+    print('[+] Machine {} stopped'.format(name))
 
 
 def run_sample(samplepath, adict,
-               timeout=150000, work_dir='C:/workdir'):
+               timeout=WORK_TIMEOUT, work_dir='C:/workdir'):
     agent, login, password, snapshot = \
            adict['name'], adict['login'], adict['password'], adict['snapshot']
     
@@ -331,38 +333,43 @@ def run_sample(samplepath, adict,
 
 def run_cycled():
     draw_samples(num=100)
-    startVM(name=LINUXVM, snapshot='fixed')
-    pool = [_agent('TempOS', 'One', '1', 'masquedmore'),
-            _agent('TempOS_2', 'One', '1', 'masquedmore'),
-            ]
+    start_time = time.time()
+    print('[!] Started run at {}'.format(time.ctime()))
+    #startVM(name=LINUXVM, snapshot='fixed')
+    pool = [_agent('TempOS_%d' % idx, 'One', '1', 'masquedmore')
+            for idx in range(1, 15)]
     for agent in pool:
         AGENT_POOL.put(agent)
     job_pool = glob.glob(os.path.join(SAMPLE_PATH, '*.zip'))
     thread_pool = []
     while job_pool:
         try:
+            print('[!] Job size left : {}'.format(len(job_pool)))
             ready_agent = AGENT_POOL.get(timeout=15)
+            to_wait = [each for each in thread_pool
+                       if each.name == ready_agent['name']]
+            if to_wait:
+                print("[!] Waiting for thread {} to finish ...".format(to_wait[0]))
+                to_wait[0].join()
+                thread_pool.pop(thread_pool.index(to_wait[0]))
             print('[!] Got free agent: {}'.format(ready_agent))
             nextsample = job_pool.pop()
             work_thr = threading.Thread(
-                name='working_{}'.format(ready_agent['name']),
+                name=ready_agent['name'],
                 target=run_sample, args=(nextsample, ready_agent)
                 )
             print('[!] Executing job on {}...'.format(ready_agent))
             work_thr.start()
             thread_pool.append(work_thr)
+            time.sleep(8)
         except queue.Empty:
-            print('[-] Out of agents, idling for now ...')
-            print('[!] Waiting everyone to finish ...')
-            for thread in thread_pool:
-                thread.join()
-                print('[+] {} succesfully stopped'.format(thread))
-            thread_pool.clear()
-            print('[!] Everyone is ready again !')
-            time.sleep(5)
+            print('[-] Out of agents, idling for now ...')            
     print('[!] Waiting everyone to finish ...')
     for thread in thread_pool:
         thread.join()
         print('[+] {} succesfully stopped'.format(thread))
     print('[+] Jobs are done!')
-    freezeVM(LINUXVM)
+    took_time = time.time() - start_time
+    print('[!] Finished run at {}, took {} minutes'.format(
+        time.ctime(), took_time / 60))
+    #freezeVM(LINUXVM)
