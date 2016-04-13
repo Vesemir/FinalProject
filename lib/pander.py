@@ -6,10 +6,12 @@ import sys
 import glob
 import funcparserlib.parser as p
 import pickle
+import re
 from collections import deque
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
 
-from vbox.tools.PyCommands.settings import RAW_DIR
+from vbox.tools.PyCommands.settings import RAW_DIR, CLSIDS, \
+     REG_BRANCHES, DANGEROUS_LIBS, F_MOVFLAGS, F_CLSCTX
 
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 MAPPING = os.path.join(CURDIR, 'funcmapping.pk')
@@ -19,6 +21,33 @@ SEQ_LOGS = os.path.join(CURDIR, 'seq_analyzer', 'datas')
 for each in (SVM_LOGS, SEQ_LOGS):
     if not os.path.isdir(each):
         os.makedirs(each)
+
+
+valid = re.compile(r'(?P<funcname>\w+)\n(?P<funcdesc>[A-Z].+?\.)\n', re.DOTALL)
+
+
+def important_functions():
+    with open(os.path.join(CURDIR, 'API_USAGE.txt')) as inp:
+        wholedict = dict()
+        whole = inp.read()
+        for match in valid.finditer(whole):
+            that = match.groupdict()
+            that['funcdesc'] = that['funcdesc'].replace('\n', ' ')
+            wholedict[that['funcname'].lower()] = that['funcdesc']
+            #print('|{funcname}| """{funcdesc}"""'.format(**that))
+    return wholedict
+
+
+MORE_FUNCTIONS = set([
+    'findfirstfile', 'createdirectory', 'createsemaphore',
+    'messagebox', 'shellexecute', 'registerwindowsmessage',
+    'lcmapstring', 'openfile', 'setinformationfile',
+    ])
+
+
+IMPORTANT_FUNCTIONS = set(important_functions().keys()
+                          ).union(MORE_FUNCTIONS)
+
 punctuation = (':', ' ', '.', '\n', '\\', '_', '{', '}', '-')
 
 lexem = p.some(lambda x: x.isalpha() or x.isdigit() or x in punctuation)
@@ -27,6 +56,57 @@ endl = p.skip(p.maybe(p.a('\n')))
 stars = p.skip(p.oneplus(p.a('*')))
 
 concat = (lambda seq: ''.join(seq))
+
+
+REGISTRY_MAPPING = {'HKLM': 'HKEY_LOCAL_MACHINE',
+                    'HKCU': 'HKEY_CURRENT_USER'}
+
+
+def find_reg_match(partial_path, reg_dict):
+    for shortcut, path in REGISTRY_MAPPING.items():
+        partial_path = partial_path.replace(
+            shortcut, path
+            )
+    for key in reg_dict:
+        if key.lower().endswith(partial_path.lower()):
+            return key
+    return ''
+
+
+def extend_name(fname, series):
+    if 'getprocaddress' in fname:
+        if series.get('funcname') in IMPORTANT_FUNCTIONS:
+            fname += '.' + series['funcname']
+    elif 'loadlibrary' in fname:
+        if series.get('libname') in DANGEROUS_LIBS:
+            fname += '.' + series['libname']
+    elif 'movefile' in fname:
+        if series.get('flags'):
+            fname += '.' + series['flags']
+    elif any(each in fname for each in ('regopenkey',
+                                      'regsetvalue',
+                                      'regcreatekey')):
+        if series.get('regkey'):          
+            found = find_reg_match(series['regkey'], REG_BRANCHES)
+            if found:
+                fname += '.' + REG_BRANCHES[found]    
+    elif 'cocreateinstance' in fname:
+        fname += '.' + series['clsctx']
+    elif any(each in fname for each in ('createfile',
+                                      'openfile',
+                                      'findfirstfile',
+                                      'querydirectoryfile')):
+        if series.get('ustyle'):
+            fname += '.' + series['ustyle']
+        if series.get('desired_access'):
+            fname += '.' + series['ustyle']
+        if series.get('share_mode'):
+            fname += '.' + series['ustyle']
+        if series.get('flags_and_attrs'):
+            fname += '.' + series['ustyle']                                      
+                        
+    return fname
+
 
 def sequence_to_list(src):
     if isinstance(src, str):
@@ -54,9 +134,11 @@ def dframe_to_sequence(dframe, filename='sample'):
         with open(MAPPING, 'rb') as inp:
             mapping = pickle.load(inp)
             print("[!] Loaded : {}".format(mapping))
-    for func in zip(dframe['dllname'], dframe['call']):
-        record = '.'.join(func)
+    for _, series in dframe.iterrows():
+        record = '.'.join(series[:2][::-1])
+        funcname = series[0]
         query_mapping = mapping.get(record)
+        funcname = extend_name(funcname, series)
         if query_mapping:
             print("[!] Using cached value of {}".format(record))
             current.append(query_mapping)
@@ -106,7 +188,6 @@ def coroutine(func):
 
 
 def calc_agg(name, lis):
-    print(lis)
     grouped = lis.groupby('call').size()
     grouped.to_pickle(os.path.join(SVM_LOGS, name))
     print('[+] Pickled SVM log for {}'.format(name))
@@ -118,8 +199,7 @@ def sink():
         name, df = yield
         calc_agg(name, df)
         dframe_to_sequence(df, filename=name)
-        
-    
+ 
 
 @coroutine
 def fileparse(target):
@@ -133,7 +213,7 @@ def fileparse(target):
             if reslist:
                 target.send((samplename, DataFrame(reslist)))
             else:
-                assert False, 'LOOK EHRE : {}'.format(samplename.upper())
+                assert False, 'LOOK HERE : {}'.format(samplename.upper())
                 print("[-] Could not be parsed {}".format(samplename))
 
 
@@ -142,13 +222,14 @@ def raw_files(logdir, fileparser):
     for sample in glob.glob(os.path.join(logdir, '*')):
         logfil = os.path.join(sample, 'apicalls.log')
         if os.path.isfile(logfil):
-            
             ctr += 1
             fileparser.send(logfil)
     print('[!] A total of {} logfiles present'.format(ctr))
 
+
 def main():
     raw_files(RAW_DIR, fileparse(sink()))
+
 
 if __name__ == '__main__':
     main()
