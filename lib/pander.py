@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import h5py
 from pandas import DataFrame
 import os
 import sys
@@ -17,6 +18,7 @@ CURDIR = os.path.dirname(os.path.abspath(__file__))
 MAPPING = os.path.join(CURDIR, 'funcmapping.pk')
 SVM_LOGS = os.path.join(CURDIR, 'svm_analyzer', 'datas')
 SEQ_LOGS = os.path.join(CURDIR, 'seq_analyzer', 'datas')
+KBASE_FILE = os.path.join(CURDIR, 'seq_analyzer', 'datas', 'knowledgebase.hdf5')
 
 for each in (SVM_LOGS, SEQ_LOGS):
     if not os.path.isdir(each):
@@ -73,7 +75,7 @@ def find_reg_match(partial_path, reg_dict):
     return ''
 
 
-def extend_name(fname, series):
+def extend_name(fname, series, imagename):
     if 'getprocaddress' in fname:
         if series.get('funcname') in IMPORTANT_FUNCTIONS:
             fname += '.' + series['funcname']
@@ -89,7 +91,18 @@ def extend_name(fname, series):
         if series.get('regkey'):          
             found = find_reg_match(series['regkey'], REG_BRANCHES)
             if found:
-                fname += '.' + REG_BRANCHES[found]    
+                fname += '.' + REG_BRANCHES[found]
+    elif any(each in fname for each in ('strcmp',
+                                        'comparestring')):
+        if series.get('string1'):
+            if imagename in series['string1']:
+                fname += '.SelfImageName'
+        elif series.get('string2'):
+            if imagename in series['string2']:
+                fname += '.SelfImageName'
+    elif 'strcpy' in fname:
+        if series.get('src_string'):
+            fname += '.SelfImageName'
     elif 'cocreateinstance' in fname:
         fname += '.' + series['clsctx']
     elif any(each in fname for each in ('createfile',
@@ -103,7 +116,10 @@ def extend_name(fname, series):
         if series.get('share_mode'):
             fname += '.' + series['ustyle']
         if series.get('flags_and_attrs'):
-            fname += '.' + series['ustyle']                                      
+            fname += '.' + series['ustyle']
+        if series.get('filename'):
+            if 'Local\Temp' in series['filename']:
+                fname += '.' + 'TempFile'
                         
     return fname
 
@@ -123,7 +139,7 @@ def sequence_to_list(src):
     return ' -> '.join(revmapping.get(each, 'Unk') if each != '-' else 'Skipped' for each in array)        
 
 
-def dframe_to_sequence(dframe, filename='sample'):
+def dframe_to_sequence(dframe, filename='sample', knowledge=None):
     print('Working with \n', dframe)
     current = []
     if not os.path.isfile(MAPPING):
@@ -138,7 +154,7 @@ def dframe_to_sequence(dframe, filename='sample'):
         record = '.'.join(series[:2][::-1])
         funcname = series[0]
         query_mapping = mapping.get(record)
-        funcname = extend_name(funcname, series)
+        funcname = extend_name(funcname, series, filename)
         if query_mapping:
             print("[!] Using cached value of {}".format(record))
             current.append(query_mapping)
@@ -148,9 +164,10 @@ def dframe_to_sequence(dframe, filename='sample'):
             current.append(curlen)
             mapping[record] = curlen
     print(mapping)
+    
     results = np.asarray(current)
     print('[!] Saving {}\'s results to file'.format(filename))
-    np.save(os.path.join(SEQ_LOGS, filename), results)
+    knowledge.create_dataset(filename, data=results)
     print("[!] Dumping renewed mapping back to file")
     with open(MAPPING, 'wb') as outp:
         pickle.dump(mapping, outp)
@@ -194,11 +211,11 @@ def calc_agg(name, lis):
 
 
 @coroutine
-def sink():
+def sink(kbase):
     while True:
         name, df = yield
         calc_agg(name, df)
-        dframe_to_sequence(df, filename=name)
+        dframe_to_sequence(df, filename=name, knowledge=kbase)
  
 
 @coroutine
@@ -228,7 +245,9 @@ def raw_files(logdir, fileparser):
 
 
 def main():
-    raw_files(RAW_DIR, fileparse(sink()))
+    with h5py.File(KBASE_FILE, 'w') as h5file:
+        kbase = h5file.create_group('knowledgebase')
+        raw_files(RAW_DIR, fileparse(sink(kbase)))
 
 
 if __name__ == '__main__':
