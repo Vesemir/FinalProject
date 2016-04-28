@@ -83,25 +83,25 @@ def extend_name(fname, series, imagename):
         if series.get('libname') in DANGEROUS_LIBS:
             fname += '.' + series['libname']
     elif 'movefile' in fname:
-        if series.get('flags') not in (None, np.nan):
+        if series.get('flags') not in (None, np.nan, ''):
             fname += '.' + series['flags']
     elif any(each in fname for each in ('regopenkey',
                                       'regsetvalue',
                                       'regcreatekey')):
-        if series.get('regkey') not in (None, np.nan):          
+        if series.get('regkey') not in (None, np.nan, ''):          
             found = find_reg_match(series['regkey'], REG_BRANCHES)
             if found:
                 fname += '.' + REG_BRANCHES[found]
     elif any(each in fname for each in ('strcmp',
                                         'comparestring')):
-        if series.get('string1') not in (None, np.nan):
+        if series.get('string1') not in (None, np.nan, ''):
             if imagename in series['string1']:
                 fname += '.SelfImageName'
-        elif series.get('string2') not in (None, np.nan):
+        elif series.get('string2') not in (None, np.nan, ''):
             if imagename in series['string2']:
                 fname += '.SelfImageName'
     elif 'strcpy' in fname:
-        if series.get('src_string') not in (None, np.nan):
+        if series.get('src_string') not in (None, np.nan, ''):
             fname += '.SelfImageName'
     elif 'cocreateinstance' in fname:
         fname += '.' + series['clsctx']
@@ -109,15 +109,15 @@ def extend_name(fname, series, imagename):
                                       'openfile',
                                       'findfirstfile',
                                       'querydirectoryfile')):
-        if series.get('ustyle') not in (None, np.nan):
+        if series.get('ustyle') not in (None, np.nan, ''):
             fname += '.' + series['ustyle']
-        if series.get('desired_access') not in (None, np.nan):
+        if series.get('desired_access') not in (None, np.nan, ''):
             fname += '.' + series['desired_access']
-        if series.get('share_mode') not in (None, np.nan):
+        if series.get('share_mode') not in (None, np.nan, ''):
             fname += '.' + series['share_mode']
-        if series.get('flags_and_attrs') not in (None, np.nan):
+        if series.get('flags_and_attrs') not in (None, np.nan, ''):
             fname += '.' + series['flags_and_attrs']
-        if series.get('filename') not in (None, np.nan):
+        if series.get('filename') not in (None, np.nan, ''):
             if 'Local\Temp' in series['filename']:
                 fname += '.' + 'TempFile'
                         
@@ -242,10 +242,13 @@ def raw_files(logdir, fileparser):
     for sample in glob.glob(os.path.join(logdir, '*')):
         logfil = os.path.join(sample, 'apicalls.log')
         if ctr % 1000 == 0:
-            print('[!] A total of {} logfiles processed'.format(ctr)
+            print('[!] A total of {} logfiles processed'.format(ctr))
         if os.path.isfile(logfil):
             ctr += 1
-            fileparser.send(logfil)
+            try:
+                fileparser.send(logfil)
+            except Exception as e:
+                print("[!] Can't parse : {}, skipping. Reason : {}".format(sample, str(e)))
     print('[!] A total of {} logfiles present'.format(ctr))
 
 
