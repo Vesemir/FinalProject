@@ -26,16 +26,17 @@ def filterPE(pfile):
     return True
 
 
-def draw_samples(src='VirusShare', num=100):
+def draw_samples(src='VirusShare', num=100, suffix=None):
     if src == 'VirusShare':
         SOURCE_DIR = VIRUS_SHARE
     elif src == 'MalShare':
         SOURCE_DIR = MAL_SHARE
     elif src == 'VirusSign':
         SOURCE_DIR = VIRUS_SIGN # seems impossible to download any
-    
-    print("[!] Drawing samples from {} ...".format(src))
-    for eachfile in glob.glob(os.path.join(SOURCE_DIR, '*', '*')):
+    if suffix:
+        SOURCE_DIR = os.path.join(SOURCE_DIR, suffix)
+    print("[!] Drawing samples from {} ...".format(SOURCE_DIR))
+    for eachfile in glob.glob(os.path.join(SOURCE_DIR, '*')):
         if filterPE(eachfile):
             print("[!] Copying {} to samples".format(eachfile))
             zipin(eachfile, targetdir=SAMPLE_PATH)

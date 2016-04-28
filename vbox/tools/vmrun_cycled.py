@@ -4,6 +4,8 @@ import glob
 import time
 import threading
 import queue
+import pathlib
+import glob
 from contextlib import contextmanager
 #this one should complete a routine:
 ## Take a sample from samples/ directory +
@@ -31,7 +33,7 @@ PYTHON = r'C:/Python27/python.exe'
 WINVM = 'TempOS'
 LOGIN = 'One'
 PASSWORD = '1'
-LINUXVM = 'INetSim'
+LINUXVM = 'INET_SIM'
 
 WORK_TIMEOUT = 120000
 
@@ -281,66 +283,85 @@ def freezeVM(name='INetSim'):
 
 def run_sample(samplepath, adict,
                timeout=WORK_TIMEOUT, work_dir='C:/workdir'):
-    agent, login, password, snapshot = \
-           adict['name'], adict['login'], adict['password'], adict['snapshot']
-    
-    proc_name = os.path.basename(samplepath)
-    startVM(name=agent, style='headless', snapshot=snapshot)
-    copytoolstoVM(name=agent,
-                  dest_dir=work_dir,
-                  username=login,
-                  password=password)
-    copyfiletoVM(name=agent,
-                 src_file=samplepath,
-                 dest_dir=work_dir,
-                 username=login,
-                 password=password)
-    getapi = os.path.join(work_dir, GETAPI)
-    runprocessonVM(name=agent,
-                   dest_file=PYTHON,
-                   work_dir=work_dir,
-                   args=dict(
-                       command=getapi,
-                       file=os.path.join(
-                           work_dir, proc_name
-                           )
-                       ),
-                   timeoutMS=timeout,
-                   username=login,
-                   password=password)
-    cur_log = os.path.join(VMLOGS_DIR,
-                           os.path.splitext(proc_name)[0],
-                           'apicalls.log')
-    cur_search = os.path.join(VMLOGS_DIR,
-                           os.path.splitext(proc_name)[0],
-                           'iatsearch.txt')
-    sample_log = os.path.join(LOGS_PATH,
-                              os.path.splitext(proc_name)[0])
-    if not os.path.isdir(sample_log):
-        os.makedirs(sample_log)
-    done = readfilefromVM(name=agent,
-                          username=login,
-                          password=password,
-                          src_file=cur_log, dest_dir=sample_log)
-    readfilefromVM(name=agent,
-                   src_file=cur_search,
-                   dest_dir=sample_log,
-                   username=login,
-                   password=password)
-    freezeVM(name=agent)
-    AGENT_POOL.put(adict)
+    try:
+        
+        agent, login, password, snapshot = \
+               adict['name'], adict['login'], adict['password'], adict['snapshot']
+        
+        proc_name = os.path.basename(samplepath)
+        startVM(name=agent, style='headless', snapshot=snapshot)
+        copytoolstoVM(name=agent,
+                      dest_dir=work_dir,
+                      username=login,
+                      password=password)
+        copyfiletoVM(name=agent,
+                     src_file=samplepath,
+                     dest_dir=work_dir,
+                     username=login,
+                     password=password)
+        getapi = os.path.join(work_dir, GETAPI)
+        runprocessonVM(name=agent,
+                       dest_file=PYTHON,
+                       work_dir=work_dir,
+                       args=dict(
+                           command=getapi,
+                           file=os.path.join(
+                               work_dir, proc_name
+                               )
+                           ),
+                       timeoutMS=timeout,
+                       username=login,
+                       password=password)
+        cur_log = os.path.join(VMLOGS_DIR,
+                               os.path.splitext(proc_name)[0],
+                               'apicalls.log')
+        cur_search = os.path.join(VMLOGS_DIR,
+                               os.path.splitext(proc_name)[0],
+                               'iatsearch.txt')
+        sample_log = os.path.join(LOGS_PATH,
+                                  os.path.splitext(proc_name)[0])
+        if not os.path.isdir(sample_log):
+            os.makedirs(sample_log)
+        done = readfilefromVM(name=agent,
+                              username=login,
+                              password=password,
+                              src_file=cur_log, dest_dir=sample_log)
+        readfilefromVM(name=agent,
+                       src_file=cur_search,
+                       dest_dir=sample_log,
+                       username=login,
+                       password=password)
+        #os.rename(samplepath, os.path.splitext(samplepath, [0]) + '.done')
+        
+    except:
+        pass
+    finally:
+        freezeVM(name=agent)
+        AGENT_POOL.put(adict)
 
-
-def run_cycled():
-    draw_samples(num=100)
+        
+def dirty_hacks():
+    doer = glob.iglob(os.path.join(LOGS_PATH, '*'))
+    for logpath in doer:
+        targetfile = os.path.join(SAMPLE_PATH, os.path.basename(logpath) + '.zip')
+        if os.path.isfile(targetfile):
+           print("renaming one")
+           os.rename(os.path.join(SAMPLE_PATH, os.path.basename(logpath) + '.zip'),
+                     os.path.join(SAMPLE_PATH, os.path.basename(logpath) + '.done'))
+            
+            
+            
+def run_cycled(agents_num=15, samples_num=65536):
+    #draw_samples(num=samples_num, suffix='185')
     start_time = time.time()
     print('[!] Started run at {}'.format(time.ctime()))
-    #startVM(name=LINUXVM, snapshot='fixed')
+    startVM(name=LINUXVM, snapshot='fixed')
     pool = [_agent('TempOS_%d' % idx, 'One', '1', 'masquedmore')
-            for idx in range(1, 15)]
+            for idx in range(1, agents_num + 1)]
     for agent in pool:
         AGENT_POOL.put(agent)
     job_pool = glob.glob(os.path.join(SAMPLE_PATH, '*.zip'))
+    WORK_SIZE = len(job_pool)
     thread_pool = []
     while job_pool:
         try:
@@ -370,6 +391,6 @@ def run_cycled():
         print('[+] {} succesfully stopped'.format(thread))
     print('[+] Jobs are done!')
     took_time = time.time() - start_time
-    print('[!] Finished run at {}, took {} minutes'.format(
-        time.ctime(), took_time / 60))
-    #freezeVM(LINUXVM)
+    print('[!] Finished run at {}, took {} minutes, done {} samples'.format(
+        time.ctime(), took_time / 60, WORK_SIZE))
+    freezeVM(LINUXVM)
