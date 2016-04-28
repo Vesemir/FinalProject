@@ -1,24 +1,55 @@
 import pandas as pd
 import numpy as np
+import h5py
 from pandas import DataFrame
 import os
 import sys
 import glob
 import funcparserlib.parser as p
 import pickle
+import re
 from collections import deque
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
 
-from vbox.tools.PyCommands.settings import RAW_DIR
+from vbox.tools.PyCommands.settings import RAW_DIR, CLSIDS, \
+     REG_BRANCHES, DANGEROUS_LIBS, F_MOVFLAGS, F_CLSCTX
 
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 MAPPING = os.path.join(CURDIR, 'funcmapping.pk')
 SVM_LOGS = os.path.join(CURDIR, 'svm_analyzer', 'datas')
 SEQ_LOGS = os.path.join(CURDIR, 'seq_analyzer', 'datas')
+KBASE_FILE = os.path.join(CURDIR, 'seq_analyzer', 'datas', 'knowledgebase.hdf5')
 
 for each in (SVM_LOGS, SEQ_LOGS):
     if not os.path.isdir(each):
         os.makedirs(each)
+
+
+valid = re.compile(r'(?P<funcname>\w+)\n(?P<funcdesc>[A-Z].+?\.)\n', re.DOTALL)
+
+
+def important_functions():
+    with open(os.path.join(CURDIR, 'API_USAGE.txt')) as inp:
+        wholedict = dict()
+        whole = inp.read()
+        for match in valid.finditer(whole):
+            that = match.groupdict()
+            that['funcdesc'] = that['funcdesc'].replace('\n', ' ')
+            wholedict[that['funcname'].lower()] = that['funcdesc']
+            #print('|{funcname}| """{funcdesc}"""'.format(**that))
+    return wholedict
+
+
+MORE_FUNCTIONS = set([
+    'findfirstfile', 'createdirectory', 'createsemaphore',
+    'messagebox', 'shellexecute', 'registerwindowsmessage',
+    'lcmapstring', 'openfile', 'setinformationfile',
+    ])
+
+
+IMPORTANT_FUNCTIONS = set(important_functions().keys()
+                          ).union(MORE_FUNCTIONS)
+
 punctuation = (':', ' ', '.', '\n', '\\', '_', '{', '}', '-')
 
 lexem = p.some(lambda x: x.isalpha() or x.isdigit() or x in punctuation)
@@ -27,6 +58,71 @@ endl = p.skip(p.maybe(p.a('\n')))
 stars = p.skip(p.oneplus(p.a('*')))
 
 concat = (lambda seq: ''.join(seq))
+
+
+REGISTRY_MAPPING = {'HKLM': 'HKEY_LOCAL_MACHINE',
+                    'HKCU': 'HKEY_CURRENT_USER'}
+
+
+def find_reg_match(partial_path, reg_dict):
+    for shortcut, path in REGISTRY_MAPPING.items():
+        partial_path = partial_path.replace(
+            shortcut, path
+            )
+    for key in reg_dict:
+        if key.lower().endswith(partial_path.lower()):
+            return key
+    return ''
+
+
+def extend_name(fname, series, imagename):
+    if 'getprocaddress' in fname:
+        if series.get('funcname') in IMPORTANT_FUNCTIONS:
+            fname += '.' + series['funcname']
+    elif 'loadlibrary' in fname:
+        if series.get('libname') in DANGEROUS_LIBS:
+            fname += '.' + series['libname']
+    elif 'movefile' in fname:
+        if series.get('flags'):
+            fname += '.' + series['flags']
+    elif any(each in fname for each in ('regopenkey',
+                                      'regsetvalue',
+                                      'regcreatekey')):
+        if series.get('regkey'):          
+            found = find_reg_match(series['regkey'], REG_BRANCHES)
+            if found:
+                fname += '.' + REG_BRANCHES[found]
+    elif any(each in fname for each in ('strcmp',
+                                        'comparestring')):
+        if series.get('string1'):
+            if imagename in series['string1']:
+                fname += '.SelfImageName'
+        elif series.get('string2'):
+            if imagename in series['string2']:
+                fname += '.SelfImageName'
+    elif 'strcpy' in fname:
+        if series.get('src_string'):
+            fname += '.SelfImageName'
+    elif 'cocreateinstance' in fname:
+        fname += '.' + series['clsctx']
+    elif any(each in fname for each in ('createfile',
+                                      'openfile',
+                                      'findfirstfile',
+                                      'querydirectoryfile')):
+        if series.get('ustyle'):
+            fname += '.' + series['ustyle']
+        if series.get('desired_access'):
+            fname += '.' + series['ustyle']
+        if series.get('share_mode'):
+            fname += '.' + series['ustyle']
+        if series.get('flags_and_attrs'):
+            fname += '.' + series['ustyle']
+        if series.get('filename'):
+            if 'Local\Temp' in series['filename']:
+                fname += '.' + 'TempFile'
+                        
+    return fname
+
 
 def sequence_to_list(src):
     if isinstance(src, str):
@@ -43,7 +139,7 @@ def sequence_to_list(src):
     return ' -> '.join(revmapping.get(each, 'Unk') if each != '-' else 'Skipped' for each in array)        
 
 
-def dframe_to_sequence(dframe, filename='sample'):
+def dframe_to_sequence(dframe, filename='sample', knowledge=None):
     print('Working with \n', dframe)
     current = []
     if not os.path.isfile(MAPPING):
@@ -54,9 +150,11 @@ def dframe_to_sequence(dframe, filename='sample'):
         with open(MAPPING, 'rb') as inp:
             mapping = pickle.load(inp)
             print("[!] Loaded : {}".format(mapping))
-    for func in zip(dframe['dllname'], dframe['call']):
-        record = '.'.join(func)
+    for _, series in dframe.iterrows():
+        record = '.'.join(series[:2][::-1])
+        funcname = series[0]
         query_mapping = mapping.get(record)
+        funcname = extend_name(funcname, series, filename)
         if query_mapping:
             print("[!] Using cached value of {}".format(record))
             current.append(query_mapping)
@@ -66,9 +164,10 @@ def dframe_to_sequence(dframe, filename='sample'):
             current.append(curlen)
             mapping[record] = curlen
     print(mapping)
+    
     results = np.asarray(current)
     print('[!] Saving {}\'s results to file'.format(filename))
-    np.save(os.path.join(SEQ_LOGS, filename), results)
+    knowledge.create_dataset(filename, data=results)
     print("[!] Dumping renewed mapping back to file")
     with open(MAPPING, 'wb') as outp:
         pickle.dump(mapping, outp)
@@ -106,20 +205,18 @@ def coroutine(func):
 
 
 def calc_agg(name, lis):
-    print(lis)
     grouped = lis.groupby('call').size()
     grouped.to_pickle(os.path.join(SVM_LOGS, name))
     print('[+] Pickled SVM log for {}'.format(name))
 
 
 @coroutine
-def sink():
+def sink(kbase):
     while True:
         name, df = yield
         calc_agg(name, df)
-        dframe_to_sequence(df, filename=name)
-        
-    
+        dframe_to_sequence(df, filename=name, knowledge=kbase)
+ 
 
 @coroutine
 def fileparse(target):
@@ -133,7 +230,7 @@ def fileparse(target):
             if reslist:
                 target.send((samplename, DataFrame(reslist)))
             else:
-                assert False, 'LOOK EHRE : {}'.format(samplename.upper())
+                assert False, 'LOOK HERE : {}'.format(samplename.upper())
                 print("[-] Could not be parsed {}".format(samplename))
 
 
@@ -142,13 +239,16 @@ def raw_files(logdir, fileparser):
     for sample in glob.glob(os.path.join(logdir, '*')):
         logfil = os.path.join(sample, 'apicalls.log')
         if os.path.isfile(logfil):
-            
             ctr += 1
             fileparser.send(logfil)
     print('[!] A total of {} logfiles present'.format(ctr))
 
+
 def main():
-    raw_files(RAW_DIR, fileparse(sink()))
+    with h5py.File(KBASE_FILE, 'w') as h5file:
+        kbase = h5file.create_group('knowledgebase')
+        raw_files(RAW_DIR, fileparse(sink(kbase)))
+
 
 if __name__ == '__main__':
     main()

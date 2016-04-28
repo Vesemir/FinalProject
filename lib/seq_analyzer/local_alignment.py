@@ -2,6 +2,7 @@ import numpy as np
 import os
 import sys
 import glob
+import h5py
 
 from itertools import chain, combinations
 from collections import deque
@@ -10,7 +11,7 @@ from collections import deque
 
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(CURDIR, os.pardir))
-from pander import sequence_to_list
+from pander import sequence_to_list, KBASE_FILE
 SEQ_LOGS = os.path.join(CURDIR, 'datas')
 
 SCORE_MATCH = 10
@@ -98,10 +99,8 @@ def compute_alignment_helper(seq_x, seq_y, diag=10, off_diag=0, dash=-1):
     return compute_local_alignment(seq_x, seq_y, align_mat)
 
 
-def search_samples(name_1, name_2):
-    seq_1 = np.load(name_1)
-    seq_2 = np.load(name_2)
-    #print("[!] Searching {} \n {}".format(seq_1, seq_2))
+def search_samples(seq_1, seq_2):
+    #print("[!] Searching {} \n {}".format(seq_1.name, seq_2.name))
     res = compute_alignment_helper(seq_1, seq_2)
     if res[0] >= 85:
         print("*" * 20 + "\nSCORE : {}\n\n{} :\n {}\n{} :\n {}\n".format(
@@ -112,7 +111,9 @@ def search_samples(name_1, name_2):
     
 
 def test_match():
-    for fil, otherfil in combinations(glob.glob(os.path.join(SEQ_LOGS, '*')), 2):
-        if fil != otherfil:
-            search_samples(fil, otherfil)
+    with h5py.File(KBASE_FILE, 'r', driver='core') as h5file:
+        kbase = h5file['knowledgebase']
+        for sampledata, sampledata_other in combinations((kbase[sample] for sample in kbase), 2):
+            if fil != otherfil:
+                search_samples(sampledata, sampledata_other)
 

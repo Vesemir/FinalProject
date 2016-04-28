@@ -19,17 +19,9 @@ from settings import LOGS_DIR, F_FILEOPEN, F_DESACCESS, F_SHAREMODE
 from settings import F_CLSCTX, F_FLANDATTRS, F_MOVFLAGS
 
 
-IMPORTANT_FUNCTIONS = (
-    'loadlibrary', 'getprocaddress', 'findfirstfile', 'regopenkey', 'findresource',
-    'createdirectory', 'createsemaphore', 'messagebox', 'shellexecute', 'comparestring',
-    'strcmp', 'strcpy', 'registerwindowsmessage', 'lcmapstring', 'strlen', 'openfile',
-    'createfile'
-    )
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 FUNCTION = re.compile(r'At 0x[0-9a-f]{8} in (?P<libname>\w+) \(base \+ 0x[0-9a-f]{8}\) : (?P<funcaddr>0x[0-9a-f]{8}) \(ptr to (?P<funcname>[a-zA-Z0-9.]+)\)')
 
-
-valid = re.compile(r'(?P<funcname>\w+)\n(?P<funcdesc>[A-Z].+?\.)\n', re.DOTALL)
 
 #ripped off from mona
 arch = 32
@@ -204,18 +196,6 @@ def get_enabled_flags(fdict, flag):
         if flag & key:
             res.append(value)
     return '|'.join(res)
-
-
-def important_functions():
-    with open(os.path.join(CURDIR, 'API_USAGE.txt')) as inp:
-        wholedict = dict()
-        whole = inp.read()
-        for match in valid.finditer(whole):
-            that = match.groupdict()
-            that['funcdesc'] = that['funcdesc'].replace('\n', ' ')
-            wholedict[that['funcname'].lower()] = that['funcdesc']
-            #print('|{funcname}| """{funcdesc}"""'.format(**that))
-    return wholedict
 
 
 def function_dict(path):
@@ -456,10 +436,8 @@ def main(args):
     #loaddll_hook = ExportHook(functions_dict, logspath) # doesn't work 
     #loaddll_hook.add("Generic DLL handler")
     functions_hooker = CallGetter(functions_dict, logspath)
-    imp_func = important_functions()
     dump = ''
     for address, funcname in functions_dict.items():
-        #if funcname.split('.')[1] in imp_func:
         #if not 'rtl' in funcname:
         functions_hooker.add(funcname, address)
     return "[*] API calls hooker enabled!"
