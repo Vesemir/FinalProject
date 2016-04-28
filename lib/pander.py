@@ -8,7 +8,7 @@ import glob
 import funcparserlib.parser as p
 import pickle
 import re
-from collections import deque
+from collections import deque, OrderedDict
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
 
 from vbox.tools.PyCommands.settings import RAW_DIR, CLSIDS, \
@@ -50,9 +50,9 @@ MORE_FUNCTIONS = set([
 IMPORTANT_FUNCTIONS = set(important_functions().keys()
                           ).union(MORE_FUNCTIONS)
 
-punctuation = (':', ' ', '.', '\n', '\\', '_', '{', '}', '-')
+punctuation = (':', ' ', '.', '\n', '\\', '_', '{', '}', '-', '<', '>')
 
-lexem = p.some(lambda x: x.isalpha() or x.isdigit() or x in punctuation)
+lexem = p.some(lambda x: x is not '*')#or x.isalpha() or x.isdigit() or x in punctuation)
 
 endl = p.skip(p.maybe(p.a('\n')))
 stars = p.skip(p.oneplus(p.a('*')))
@@ -83,25 +83,25 @@ def extend_name(fname, series, imagename):
         if series.get('libname') in DANGEROUS_LIBS:
             fname += '.' + series['libname']
     elif 'movefile' in fname:
-        if series.get('flags'):
+        if series.get('flags') not in (None, np.nan):
             fname += '.' + series['flags']
     elif any(each in fname for each in ('regopenkey',
                                       'regsetvalue',
                                       'regcreatekey')):
-        if series.get('regkey'):          
+        if series.get('regkey') not in (None, np.nan):          
             found = find_reg_match(series['regkey'], REG_BRANCHES)
             if found:
                 fname += '.' + REG_BRANCHES[found]
     elif any(each in fname for each in ('strcmp',
                                         'comparestring')):
-        if series.get('string1'):
+        if series.get('string1') not in (None, np.nan):
             if imagename in series['string1']:
                 fname += '.SelfImageName'
-        elif series.get('string2'):
+        elif series.get('string2') not in (None, np.nan):
             if imagename in series['string2']:
                 fname += '.SelfImageName'
     elif 'strcpy' in fname:
-        if series.get('src_string'):
+        if series.get('src_string') not in (None, np.nan):
             fname += '.SelfImageName'
     elif 'cocreateinstance' in fname:
         fname += '.' + series['clsctx']
@@ -109,15 +109,15 @@ def extend_name(fname, series, imagename):
                                       'openfile',
                                       'findfirstfile',
                                       'querydirectoryfile')):
-        if series.get('ustyle'):
+        if series.get('ustyle') not in (None, np.nan):
             fname += '.' + series['ustyle']
-        if series.get('desired_access'):
-            fname += '.' + series['ustyle']
-        if series.get('share_mode'):
-            fname += '.' + series['ustyle']
-        if series.get('flags_and_attrs'):
-            fname += '.' + series['ustyle']
-        if series.get('filename'):
+        if series.get('desired_access') not in (None, np.nan):
+            fname += '.' + series['desired_access']
+        if series.get('share_mode') not in (None, np.nan):
+            fname += '.' + series['share_mode']
+        if series.get('flags_and_attrs') not in (None, np.nan):
+            fname += '.' + series['flags_and_attrs']
+        if series.get('filename') not in (None, np.nan):
             if 'Local\Temp' in series['filename']:
                 fname += '.' + 'TempFile'
                         
@@ -140,41 +140,41 @@ def sequence_to_list(src):
 
 
 def dframe_to_sequence(dframe, filename='sample', knowledge=None):
-    print('Working with \n', dframe)
+    #print('Working with \n', dframe)
     current = []
     if not os.path.isfile(MAPPING):
         print("[-] No mapping found, creating new one ...")
         mapping = dict()
     else:
-        print("[+] Found ready mapping, loading ...")
+        #print("[+] Found ready mapping, loading ...")
         with open(MAPPING, 'rb') as inp:
             mapping = pickle.load(inp)
-            print("[!] Loaded : {}".format(mapping))
+            #print("[!] Loaded : {}".format(mapping))
     for _, series in dframe.iterrows():
-        record = '.'.join(series[:2][::-1])
-        funcname = series[0]
-        query_mapping = mapping.get(record)
-        funcname = extend_name(funcname, series, filename)
+        record = '.'.join((series['dllname'], series['call']))
+        seq_name = extend_name(record, series, filename)
+        query_mapping = mapping.get(seq_name)
+        
         if query_mapping:
-            print("[!] Using cached value of {}".format(record))
+            #print("[!] Using cached value of {}".format(record))
             current.append(query_mapping)
         else:
             print("[!] Got new func : {}".format(record))
             curlen = len(mapping) + 1
             current.append(curlen)
-            mapping[record] = curlen
-    print(mapping)
+            mapping[seq_name] = curlen
+    #print(mapping)
     
     results = np.asarray(current)
-    print('[!] Saving {}\'s results to file'.format(filename))
+    #print('[!] Saving {}\'s results to file'.format(filename))
     knowledge.create_dataset(filename, data=results)
-    print("[!] Dumping renewed mapping back to file")
+    #print("[!] Dumping renewed mapping back to file")
     with open(MAPPING, 'wb') as outp:
         pickle.dump(mapping, outp)
 
 
 def tuplicate(onecall):
-    retval = dict()
+    retval = OrderedDict()
     sequence = [val for val in onecall.split('\n') if val]
     call = sequence.pop(0).split(':')[1].strip()
     lib, func = call.split('.')
@@ -207,7 +207,7 @@ def coroutine(func):
 def calc_agg(name, lis):
     grouped = lis.groupby('call').size()
     grouped.to_pickle(os.path.join(SVM_LOGS, name))
-    print('[+] Pickled SVM log for {}'.format(name))
+    #print('[+] Pickled SVM log for {}'.format(name))
 
 
 @coroutine
@@ -223,12 +223,15 @@ def fileparse(target):
     while True:
         filepath = yield
         print('[!] There are logs for {} sample'.format(filepath))
-        with open(filepath) as raw:
+        with open(filepath, encoding='ascii', errors='ignore') as raw:
             buff = raw.read().replace('\x00', ' ')
             reslist = manycalls.parse(buff)
+                       
             samplename = os.path.basename(os.path.dirname(filepath))
             if reslist:
-                target.send((samplename, DataFrame(reslist)))
+                target.send((samplename,
+                             DataFrame(reslist)
+                             ))
             else:
                 assert False, 'LOOK HERE : {}'.format(samplename.upper())
                 print("[-] Could not be parsed {}".format(samplename))
@@ -238,6 +241,8 @@ def raw_files(logdir, fileparser):
     ctr = 0
     for sample in glob.glob(os.path.join(logdir, '*')):
         logfil = os.path.join(sample, 'apicalls.log')
+        if ctr % 1000 == 0:
+            print('[!] A total of {} logfiles processed'.format(ctr)
         if os.path.isfile(logfil):
             ctr += 1
             fileparser.send(logfil)
