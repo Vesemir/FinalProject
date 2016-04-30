@@ -6,7 +6,8 @@ import os
 import sys
 import glob
 import funcparserlib.parser as p
-import pickle
+import logging
+import json
 import re
 from collections import deque, OrderedDict
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
@@ -15,10 +16,12 @@ from vbox.tools.PyCommands.settings import RAW_DIR, CLSIDS, \
      REG_BRANCHES, DANGEROUS_LIBS, F_MOVFLAGS, F_CLSCTX
 
 CURDIR = os.path.dirname(os.path.abspath(__file__))
-MAPPING = os.path.join(CURDIR, 'funcmapping.pk')
+PARSE_LOG = os.path.join(CURDIR, 'parse_log.log')
+MAPPING = os.path.join(CURDIR, 'funcmapping.json')
 SVM_LOGS = os.path.join(CURDIR, 'svm_analyzer', 'datas')
 SEQ_LOGS = os.path.join(CURDIR, 'seq_analyzer', 'datas')
 KBASE_FILE = os.path.join(CURDIR, 'seq_analyzer', 'datas', 'knowledgebase.hdf5')
+logging.basicConfig(filename=PARSE_LOG, level=logging.DEBUG)
 
 for each in (SVM_LOGS, SEQ_LOGS):
     if not os.path.isdir(each):
@@ -81,7 +84,7 @@ def extend_name(fname, series, imagename):
             fname += '.' + series['funcname']
     elif 'loadlibrary' in fname:
         if series.get('libname') in DANGEROUS_LIBS:
-            fname += '.' + series['libname']
+            fname += '.' + DANGEROUS_LIBS[series['libname']]
     elif 'movefile' in fname:
         if series.get('flags') not in (None, np.nan, ''):
             fname += '.' + series['flags']
@@ -102,7 +105,8 @@ def extend_name(fname, series, imagename):
                 fname += '.SelfImageName'
     elif 'strcpy' in fname:
         if series.get('src_string') not in (None, np.nan, ''):
-            fname += '.SelfImageName'
+            if imagename in series['src_string']:
+                fname += '.SelfImageName'
     elif 'cocreateinstance' in fname:
         fname += '.' + series['clsctx']
     elif any(each in fname for each in ('createfile',
@@ -139,17 +143,10 @@ def sequence_to_list(src):
     return ' -> '.join(revmapping.get(each, 'Unk') if each != '-' else 'Skipped' for each in array)        
 
 
-def dframe_to_sequence(dframe, filename='sample', knowledge=None):
+def dframe_to_sequence(dframe, filename='sample', knowledge=None, mapping=None):
     #print('Working with \n', dframe)
     current = []
-    if not os.path.isfile(MAPPING):
-        print("[-] No mapping found, creating new one ...")
-        mapping = dict()
-    else:
-        #print("[+] Found ready mapping, loading ...")
-        with open(MAPPING, 'rb') as inp:
-            mapping = pickle.load(inp)
-            #print("[!] Loaded : {}".format(mapping))
+    
     for _, series in dframe.iterrows():
         record = '.'.join((series['dllname'], series['call']))
         seq_name = extend_name(record, series, filename)
@@ -159,7 +156,7 @@ def dframe_to_sequence(dframe, filename='sample', knowledge=None):
             #print("[!] Using cached value of {}".format(record))
             current.append(query_mapping)
         else:
-            print("[!] Got new func : {}".format(record))
+            print("[!] Got new func : {}".format(seq_name))
             curlen = len(mapping) + 1
             current.append(curlen)
             mapping[seq_name] = curlen
@@ -168,10 +165,7 @@ def dframe_to_sequence(dframe, filename='sample', knowledge=None):
     results = np.asarray(current)
     #print('[!] Saving {}\'s results to file'.format(filename))
     knowledge.create_dataset(filename, data=results)
-    #print("[!] Dumping renewed mapping back to file")
-    with open(MAPPING, 'wb') as outp:
-        pickle.dump(mapping, outp)
-
+    
 
 def tuplicate(onecall):
     retval = OrderedDict()
@@ -211,18 +205,18 @@ def calc_agg(name, lis):
 
 
 @coroutine
-def sink(kbase):
+def sink(kbase, mapping):
     while True:
         name, df = yield
         calc_agg(name, df)
-        dframe_to_sequence(df, filename=name, knowledge=kbase)
+        dframe_to_sequence(df, filename=name, knowledge=kbase, mapping=mapping)
  
 
 @coroutine
 def fileparse(target):
     while True:
         filepath = yield
-        print('[!] There are logs for {} sample'.format(filepath))
+        #print('[!] There are logs for {} sample'.format(filepath))
         with open(filepath, encoding='ascii', errors='ignore') as raw:
             buff = raw.read().replace('\x00', ' ')
             reslist = manycalls.parse(buff)
@@ -248,17 +242,30 @@ def raw_files(logdir, fileparser):
             try:
                 fileparser.send(logfil)
             except Exception as e:
-                print("[!] Can't parse : {}, skipping. Reason : {}".format(sample, str(e)))
+                logging.debug("[!] Can't parse : {}, skipping. Reason : {}".format(sample, str(e)))
     print('[!] A total of {} logfiles present'.format(ctr))
 
 
-def main():
+def process_all_logs():
+    if not os.path.isfile(MAPPING):
+        print("[-] No mapping found, creating new one ...")
+        mapping = dict()
+    else:
+        print("[+] Found ready mapping, loading ...")
+        with open(MAPPING) as inp:
+            mapping = json.load(inp)
+            print("[!] Loaded : {}".format(mapping))
     with h5py.File(KBASE_FILE, 'w') as h5file:
         kbase = h5file.create_group('knowledgebase')
-        raw_files(RAW_DIR, fileparse(sink(kbase)))
+        raw_files(RAW_DIR, fileparse(sink(kbase, mapping)))
+        
+    print("[!] Dumping renewed of size {} mapping back to file".format(len(mapping)))
+    with open(MAPPING, 'w') as outp:
+        json.dump(mapping, outp)
+    
 
 
 if __name__ == '__main__':
-    main()
+    process_all_logs()
     
         
