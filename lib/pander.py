@@ -261,7 +261,7 @@ def process_all_logs():
         
     print("[!] Dumping renewed of size {} mapping back to file".format(len(mapping)))
     with open(MAPPING, 'w') as outp:
-        json.dump(mapping, outp)
+        json.dump(mapping, outp, indent=4)
     
 
 
