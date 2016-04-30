@@ -352,7 +352,7 @@ def dirty_hacks():
             
             
 def run_cycled(agents_num=15, samples_num=65536):
-    #draw_samples(num=samples_num, suffix='185')
+    draw_samples(src='MalShare', num=samples_num)
     start_time = time.time()
     print('[!] Started run at {}'.format(time.ctime()))
     startVM(name=LINUXVM, snapshot='fixed')

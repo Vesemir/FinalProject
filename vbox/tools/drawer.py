@@ -26,7 +26,7 @@ def filterPE(pfile):
     return True
 
 
-def draw_samples(src='VirusShare', num=100, suffix=None):
+def draw_samples(src='VirusShare', num=100, suffix=''):
     if src == 'VirusShare':
         SOURCE_DIR = VIRUS_SHARE
     elif src == 'MalShare':
