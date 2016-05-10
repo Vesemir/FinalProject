@@ -128,6 +128,28 @@ def extend_name(fname, series, imagename):
     return fname
 
 
+def find_call(call=None, call_name=None):
+    with open(MAPPING, 'r') as inp, h5py.File(KBASE_FILE, driver='core') as dbase:
+        mapping = json.load(inp)
+        mapped_call = call_name and mapping[call_name]
+        #assert False, mapped_call
+        revmapping = {value: key for (key, value) in mapping.items()}
+        db = dbase['knowledgebase']
+        call_num = mapped_call or call
+        for _hash in db:
+            array = db[_hash]
+            index = None
+            for idx, val in enumerate(array):
+                if call_num == val:
+                    index = idx
+            if index:
+                if index > 10:
+                    index = index - 10
+                else:
+                    index = 0
+                print("[!] FOUND CALL IN {}!".format(_hash))
+                print(' -> '.join(revmapping.get(each, 'Unk') if each != '-' else 'Skipped' for each in array[index:index+20]))                
+
 def sequence_to_list(src):
     if isinstance(src, str):
         array = np.load(src)
@@ -137,7 +159,7 @@ def sequence_to_list(src):
         print('[-] No mapping found to convert ..')
         sys.exit(1)
     with open(MAPPING, 'rb') as inp:
-        mapping = pickle.load(inp)
+        mapping = json.load(inp)
         print("[!] Succesfully loaded mapping")
     revmapping = {value: key for (key, value) in mapping.items()}
     return ' -> '.join(revmapping.get(each, 'Unk') if each != '-' else 'Skipped' for each in array)        
@@ -266,6 +288,7 @@ def process_all_logs():
 
 
 if __name__ == '__main__':
-    process_all_logs()
+    pass
+    #process_all_logs()
     
         
