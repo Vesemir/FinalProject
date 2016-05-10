@@ -351,7 +351,7 @@ def dirty_hacks():
             
             
             
-def run_cycled(agents_num=15, samples_num=65536):
+def run_cycled(agents_num=10, samples_num=65536):
     draw_samples(src='MalShare', num=samples_num)
     start_time = time.time()
     print('[!] Started run at {}'.format(time.ctime()))
@@ -394,3 +394,7 @@ def run_cycled(agents_num=15, samples_num=65536):
     print('[!] Finished run at {}, took {} minutes, done {} samples'.format(
         time.ctime(), took_time / 60, WORK_SIZE))
     freezeVM(LINUXVM)
+
+
+if __name__ == '__main__':
+    run_cycled()
