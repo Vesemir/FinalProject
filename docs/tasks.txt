@@ -10,3 +10,6 @@
     g) maybe try adding Chain searchs, like:
        e.g. HollowProcessTrick : CreateProcess(CREATE_SUSPENDED) -> ?ReadFile? -> GetModuleHandle(?'ntdll.dll') -> GetProcAddress('NtUnmapViewOfSection') -> VirtualAllocEx(MEM_COMMIT | MEM_RESERVE |PAGE_EXECUTE_READWRITE) -> WriteProcessMemory -> (many)WriteProcessMemory -> GetThreadContext -> SetThreadContext -> ResumeThread
 3) a)Following new processes -> look apitrace.py
+#TODO: SelfImage doesn't work on sample
+kernel32.lstrcmpia
+0130d31b0a5d1b123f42910656fa2826

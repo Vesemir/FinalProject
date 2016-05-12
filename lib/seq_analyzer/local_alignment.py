@@ -4,24 +4,44 @@ import sys
 import glob
 import h5py
 
-from itertools import chain, combinations
+from itertools import chain, combinations, product
 from collections import deque
-
 
 
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(CURDIR, os.pardir))
-from pander import sequence_to_list, KBASE_FILE
+from pander import sequence_to_list, important_functions, cached_mapping, KBASE_FILE
 SEQ_LOGS = os.path.join(CURDIR, 'datas')
 
 SCORE_MATCH = 10
-SCORE_EMPTY = -1
-SCORE_DIFFERENT = 0
+SCORE_EMPTY = -6
+SCORE_DIFFERENT = -2
+
+MUTED_CALLS = [24, 25, 157, 32, 40, 23, 72, 45, 30, 49, 386]
+
+@cached_mapping
+def important_numbers(dummy, mapping=None, revmapping=None):
+    imp_functions = important_functions()
+    imp_numbers = [item for key, item in mapping.items() if
+                   any(func in key for func in imp_functions)]
+    return imp_numbers
+
+IMPORTANT_CALLS = important_numbers(None)
 
 def scoring_matrix(rec_1, rec_2):
-    return SCORE_MATCH if rec_1 == rec_2 else SCORE_EMPTY\
-           if rec_1 == '-' or rec_2 == '-'\
-           else SCORE_DIFFERENT
+    if rec_1 == rec_2:
+        if rec_1 in IMPORTANT_CALLS:
+            return SCORE_MATCH * 1.8
+        return 0 # temporary maybe that'll work good
+        if rec_1 in MUTED_CALLS:
+            return 0
+        
+        return SCORE_MATCH
+    elif rec_1 == '-' or rec_2 == '-':
+        return SCORE_EMPTY
+    else:
+        return SCORE_DIFFERENT
+    
 
 
 def build_scoring_matrix(alphabet, diag_score, off_diag_score, dash_score):
@@ -100,20 +120,26 @@ def compute_alignment_helper(seq_x, seq_y, diag=10, off_diag=0, dash=-1):
 
 
 def search_samples(seq_1, seq_2):
-    #print("[!] Searching {} \n {}".format(seq_1.name, seq_2.name))
-    res = compute_alignment_helper(seq_1, seq_2)
+    print("[!] Searching {} \n {}".format(seq_1.name, seq_2.name))
+    seq_1_nparray, seq_2_nparray = np.array(seq_1), np.array(seq_2)
+    res = compute_alignment_helper(seq_1_nparray, seq_2_nparray)
     if res[0] >= 85:
         print("*" * 20 + "\nSCORE : {}\n\n{} :\n {}\n{} :\n {}\n".format(
-            res[0], os.path.basename(name_1), sequence_to_list(res[1]),
-            os.path.basename(name_2), sequence_to_list(res[2])
+            res[0], seq_1.name, sequence_to_list(res[1]),
+            seq_2.name, sequence_to_list(res[2])
             )
-              )
+              )    
     
 
 def test_match():
     with h5py.File(KBASE_FILE, 'r', driver='core') as h5file:
         kbase = h5file['knowledgebase']
-        for sampledata, sampledata_other in combinations((kbase[sample] for sample in kbase), 2):
-            if fil != otherfil:
-                search_samples(sampledata, sampledata_other)
+        samples = h5file['test_samples']
+        sample_names = [each for each in samples]
+        first_sample = sample_names[237]# was 37
+        for sampledata, sampledata_other in product((kbase[sample] for sample in kbase), (samples[first_sample],)):
+            search_samples(sampledata, sampledata_other)
 
+
+if __name__ == '__main__':
+    test_match()

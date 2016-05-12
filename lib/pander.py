@@ -95,12 +95,14 @@ def extend_name(fname, series, imagename):
             found = find_reg_match(series['regkey'], REG_BRANCHES)
             if found:
                 fname += '.' + REG_BRANCHES[found]
+            if imagename in series['regkey']:
+                fname += '.SelfImageName'
     elif any(each in fname for each in ('strcmp',
                                         'comparestring')):
         if series.get('string1') not in (None, np.nan, ''):
             if imagename in series['string1']:
                 fname += '.SelfImageName'
-        elif series.get('string2') not in (None, np.nan, ''):
+        if series.get('string2') not in (None, np.nan, ''):
             if imagename in series['string2']:
                 fname += '.SelfImageName'
     elif 'strcpy' in fname:
@@ -132,7 +134,6 @@ def find_call(call=None, call_name=None):
     with open(MAPPING, 'r') as inp, h5py.File(KBASE_FILE, driver='core') as dbase:
         mapping = json.load(inp)
         mapped_call = call_name and mapping[call_name]
-        #assert False, mapped_call
         revmapping = {value: key for (key, value) in mapping.items()}
         db = dbase['knowledgebase']
         call_num = mapped_call or call
@@ -150,7 +151,23 @@ def find_call(call=None, call_name=None):
                 print("[!] FOUND CALL IN {}!".format(_hash))
                 print(' -> '.join(revmapping.get(each, 'Unk') if each != '-' else 'Skipped' for each in array[index:index+20]))                
 
-def sequence_to_list(src):
+c_mapping = None
+
+
+def cached_mapping(func):
+    global c_mapping
+    with open(MAPPING, 'r') as inp:
+        c_mapping = json.load(inp)
+        rev_mapping = {value: key for (key, value) in c_mapping.items()}
+        print("[!] Succesfully loaded mapping")        
+    def retfunc(args, **kwargs):
+        return func(args, mapping=c_mapping, revmapping=rev_mapping, **kwargs)        
+    return retfunc
+    
+
+
+@cached_mapping
+def sequence_to_list(src, mapping=None, revmapping=None):
     if isinstance(src, str):
         array = np.load(src)
     elif isinstance(src, (deque, list, tuple)):
@@ -158,11 +175,19 @@ def sequence_to_list(src):
     if not os.path.isfile(MAPPING):
         print('[-] No mapping found to convert ..')
         sys.exit(1)
-    with open(MAPPING, 'rb') as inp:
-        mapping = json.load(inp)
-        print("[!] Succesfully loaded mapping")
-    revmapping = {value: key for (key, value) in mapping.items()}
-    return ' -> '.join(revmapping.get(each, 'Unk') if each != '-' else 'Skipped' for each in array)        
+    result = ''
+    prev_call = ''
+    combo = 1
+    for each in array:
+        next_call = revmapping.get(each) if each != '-' else 'Skipped'
+        
+        if prev_call != next_call:
+            result += ' -> ' + next_call if combo == 1 else ' -> %dx ' % combo + next_call
+            combo = 1
+        else:
+            combo += 1
+        prev_call = next_call
+    return result
 
 
 def dframe_to_sequence(dframe, filename='sample', knowledge=None, mapping=None):
@@ -268,7 +293,7 @@ def raw_files(logdir, fileparser):
     print('[!] A total of {} logfiles present'.format(ctr))
 
 
-def process_all_logs():
+def process_all_logs(target_group='knowledgebase'):
     if not os.path.isfile(MAPPING):
         print("[-] No mapping found, creating new one ...")
         mapping = dict()
@@ -277,8 +302,8 @@ def process_all_logs():
         with open(MAPPING) as inp:
             mapping = json.load(inp)
             print("[!] Loaded : {}".format(mapping))
-    with h5py.File(KBASE_FILE, 'w') as h5file:
-        kbase = h5file.create_group('knowledgebase')
+    with h5py.File(KBASE_FILE, 'a') as h5file:
+        kbase = h5file.create_group(target_group)
         raw_files(RAW_DIR, fileparse(sink(kbase, mapping)))
         
     print("[!] Dumping renewed of size {} mapping back to file".format(len(mapping)))
@@ -288,7 +313,6 @@ def process_all_logs():
 
 
 if __name__ == '__main__':
-    pass
-    #process_all_logs()
+    process_all_logs(target_group='test_samples')
     
         
