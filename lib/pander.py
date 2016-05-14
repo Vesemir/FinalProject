@@ -179,7 +179,7 @@ def sequence_to_list(src, mapping=None, revmapping=None):
     prev_call = ''
     combo = 1
     for each in array:
-        next_call = revmapping.get(each) if each != '-' else 'Skipped'
+        next_call = revmapping.get(each) if each != 0 else 'Skipped'
         
         if prev_call != next_call:
             result += ' -> ' + next_call if combo == 1 else ' -> %dx ' % combo + next_call

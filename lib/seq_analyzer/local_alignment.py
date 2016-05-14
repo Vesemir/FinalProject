@@ -4,7 +4,7 @@ import sys
 import glob
 import h5py
 
-from itertools import chain, combinations, product
+from itertools import combinations, product
 from collections import deque
 
 
@@ -33,15 +33,17 @@ def important_numbers(dummy, mapping=None, revmapping=None):
 IMPORTANT_CALLS, MAPPING_SIZE = important_numbers(None)
 
 
-def build_scoring_matrix(alphabet,
+def build_scoring_matrix(size,
                          diag_score=SCORE_MATCH,
                          off_diag_score=SCORE_DIFFERENT,
                          dash_score=SCORE_EMPTY):
+    numbers = range(size + 1)
+    #matr = np.zeros((size + 1, size + 1))
     matr = dict()
-    for symrow in chain(alphabet, '-'):
+    for symrow in numbers:
         matr[symrow] = dict()
-        for symcol in chain(alphabet, '-'):
-            if symcol == '-' or symrow == '-':
+        for symcol in numbers:
+            if not symcol or not symrow:
                 matr[symrow][symcol] = dash_score
             elif symcol == symrow:
                 if symcol in MUTED_CALLS:
@@ -55,29 +57,27 @@ def build_scoring_matrix(alphabet,
     return matr
     
 
-def compute_alignment_matrix(seq_x, seq_y, scoring_matrix, global_flag):
+#@profiler.do_profile
+def compute_alignment_matrix(seq_x, seq_y, scoring_matrix):
     lenfirst, lensecond = len(seq_x), len(seq_y)
     matr = [[0 for _ in range(lensecond + 1)] for __ in range(lenfirst + 1)]
+    #matr = np.zeros((lenfirst+1, lensecond + 1), dtype=np.int32)
     for idx in range(1, lenfirst + 1):
-        temp = matr[idx-1][0] + scoring_matrix[seq_x[idx-1]]['-']
-        matr[idx][0] = temp if global_flag else 0
-    for jdx in range(1, lensecond + 1):
-        temp = matr[0][jdx-1] + scoring_matrix['-'][seq_y[jdx-1]]
-        matr[0][jdx] = temp if global_flag else 0
-    for idx in range(1, lenfirst + 1):
-        for jdx in range(1, lensecond + 1):
-            res = max((matr[idx-1][jdx-1] +
-                                  scoring_matrix[seq_x[idx-1]][seq_y[jdx-1]]),
-                                 (matr[idx-1][jdx] +
-                                  scoring_matrix[seq_x[idx-1]]['-']),
-                                 (matr[idx][jdx-1] +
-                                  scoring_matrix['-'][seq_y[jdx-1]]))
-            matr[idx][jdx] = res if global_flag else res if res >0 else 0
+        prevrow = matr[idx-1]
+        currow = matr[idx]
+        matr_row = scoring_matrix[seq_x[idx-1]]
+        for jdx in range(lensecond):
+            #np.meshgrid(, sparse=True)
+            #currow[jdx] = np.max(
+            currow[jdx+1] = max(
+                (prevrow[jdx] + matr_row[seq_y[jdx]]),
+                (prevrow[jdx+1] + SCORE_EMPTY),
+                (currow[jdx] + SCORE_EMPTY), 0)            
     return matr
 
 
 def compute_local_alignment(seq_x, seq_y, scoring_matrix, alignment_matrix):
-    maxpos = max(((hoel, (idx, jdx)) for idx, line in enumerate(alignment_matrix) for (jdx, hoel) in enumerate(line) ), key=lambda x: x[0])
+    maxpos = max(((hoel, (idx, jdx)) for idx, line in enumerate(alignment_matrix) for (jdx, hoel) in enumerate(line)), key=lambda x: x[0])
     idx, jdx = maxpos[1]
     xslash, yslash = deque(), deque()
     total = 0
@@ -92,32 +92,31 @@ def compute_local_alignment(seq_x, seq_y, scoring_matrix, alignment_matrix):
             idx -= 1
             jdx -= 1
         elif alignment_matrix[idx][jdx] == alignment_matrix[idx-1][jdx] +\
-             scoring_matrix[seq_x[idx-1]]['-']:
+             scoring_matrix[seq_x[idx-1]][0]:
             xslash.appendleft(seq_x[idx-1])
-            yslash.appendleft('-')
+            yslash.appendleft(0)
             idx -= 1
         else:
-            xslash.appendleft('-')
+            xslash.appendleft(0)
             yslash.appendleft(seq_y[jdx-1])
             jdx -= 1
     while idx != 0:
         if alignment_matrix[idx][jdx] == 0:
             break
         xslash.appendleft(seq_x[idx-1])
-        yslash.appendleft('-')
+        yslash.appendleft(0)
         idx -= 1
     while jdx != 0:
         if alignment_matrix[idx][jdx] == 0:
             break
-        xslash.appendleft('-')
+        xslash.appendleft(0)
         yslash.appendleft(seq_y[jdx-1])
         jdx -= 1
     return total, xslash, yslash
 
 
-@profiler.do_profile
 def compute_alignment_helper(seq_x, seq_y, scor_mat):
-    align_mat = compute_alignment_matrix(seq_x, seq_y, scor_mat, 0)
+    align_mat = compute_alignment_matrix(seq_x, seq_y, scor_mat)
     return compute_local_alignment(seq_x, seq_y, scor_mat, align_mat)
 
 
@@ -147,7 +146,7 @@ def test_match():
         avg_cur = 0
         started = time.perf_counter()
         cycle_counter = 0
-        scor_mat = build_scoring_matrix(range(1, MAPPING_SIZE + 1))
+        scor_mat = build_scoring_matrix(MAPPING_SIZE)
         for sampledata, sampledata_other in product((kbase[sample] for sample in kbase), (samples[first_sample],)):
             found_match = search_samples(sampledata, sampledata_other, score_matrix=scor_mat)
             if found_match:
