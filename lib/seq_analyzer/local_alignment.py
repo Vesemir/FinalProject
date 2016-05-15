@@ -38,10 +38,8 @@ def build_scoring_matrix(size,
                          off_diag_score=SCORE_DIFFERENT,
                          dash_score=SCORE_EMPTY):
     numbers = range(size + 1)
-    #matr = np.zeros((size + 1, size + 1))
-    matr = dict()
+    matr = np.zeros((size + 1, size + 1))
     for symrow in numbers:
-        matr[symrow] = dict()
         for symcol in numbers:
             if not symcol or not symrow:
                 matr[symrow][symcol] = dash_score
@@ -57,19 +55,24 @@ def build_scoring_matrix(size,
     return matr
     
 
-@profiler.do_profile
-def compute_alignment_matrix(seq_x, seq_y, scoring_matrix):
+#@profiler.do_profile
+def compute_alignment_matrix(seq_x, seq_y, scoring_matrix, size):
     lenfirst, lensecond = len(seq_x), len(seq_y)
     matr = np.zeros((lenfirst + 1, lensecond + 1), dtype=np.int32)
     partial_zeros = np.zeros(lensecond)
+    
+    keyarray = np.arange(len(scoring_matrix))
     #[critical code], tried to optimize it as good as I can
     for idx in range(1, lenfirst + 1):
         prevrow = matr[idx-1]
         currow = matr[idx]
         score_row = scoring_matrix[seq_x[idx-1]]
+        idx = np.searchsorted(keyarray, seq_y)
+        mapped = score_row[idx]
+        
         partial_eval = np.vstack(
             (prevrow[1:] + SCORE_EMPTY,
-             prevrow[:-1] + [score_row[each] for each in seq_y],
+             prevrow[:-1] + mapped,
              partial_zeros)
             )
         maximums = partial_eval.max(axis=0)
@@ -122,16 +125,16 @@ def compute_local_alignment(seq_x, seq_y, scoring_matrix, alignment_matrix):
     return total, xslash, yslash
 
 
-def compute_alignment_helper(seq_x, seq_y, scor_mat):
-    align_mat = compute_alignment_matrix(seq_x, seq_y, scor_mat)
+def compute_alignment_helper(seq_x, seq_y, scor_mat, size):
+    align_mat = compute_alignment_matrix(seq_x, seq_y, scor_mat, size)
     return compute_local_alignment(seq_x, seq_y, scor_mat, align_mat)
 
 
-def search_samples(seq_1, seq_2, score_matrix=None):
+def search_samples(seq_1, seq_2, score_matrix=None, size=None):
     #print("[!] Searching {} \n {}".format(seq_1.name, seq_2.name))
     seq_1_nparray, seq_2_nparray = np.asarray(seq_1), np.asarray(seq_2)
     
-    res = compute_alignment_helper(seq_1_nparray, seq_2_nparray, score_matrix)
+    res = compute_alignment_helper(seq_1_nparray, seq_2_nparray, score_matrix, size)
     score = res[0]
     if score >= 85:
         print("*" * 20 + "\nSCORE : {}\n\n{} :\n {}\n{} :\n {}\n".format(
@@ -156,7 +159,7 @@ def test_match():
         cycle_counter = 0
         scor_mat = build_scoring_matrix(MAPPING_SIZE)
         for sampledata, sampledata_other in product((kbase[sample] for sample in kbase), (samples[first_sample],)):
-            found_match = search_samples(sampledata, sampledata_other, score_matrix=scor_mat)
+            found_match = search_samples(sampledata, sampledata_other, score_matrix=scor_mat, size=MAPPING_SIZE)
             if found_match:
                 sample_whole_score += found_match
                 similar_count += 1
