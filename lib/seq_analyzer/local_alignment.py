@@ -47,7 +47,7 @@ def build_scoring_matrix(size,
                 matr[symrow][symcol] = dash_score
             elif symcol == symrow:
                 if symcol in MUTED_CALLS:
-                    matr[symrow][symcol] = 0# or 1
+                    matr[symrow][symcol] = 0# or 0
                 elif symcol in IMPORTANT_CALLS:
                     matr[symrow][symcol] = 1.3 * diag_score
                 else:
@@ -57,41 +57,48 @@ def build_scoring_matrix(size,
     return matr
     
 
-#@profiler.do_profile
+@profiler.do_profile
 def compute_alignment_matrix(seq_x, seq_y, scoring_matrix):
     lenfirst, lensecond = len(seq_x), len(seq_y)
-    matr = [[0 for _ in range(lensecond + 1)] for __ in range(lenfirst + 1)]
-    #matr = np.zeros((lenfirst+1, lensecond + 1), dtype=np.int32)
+    matr = np.zeros((lenfirst + 1, lensecond + 1), dtype=np.int32)
+    partial_zeros = np.zeros(lensecond)
+    #[critical code], tried to optimize it as good as I can
     for idx in range(1, lenfirst + 1):
         prevrow = matr[idx-1]
         currow = matr[idx]
-        matr_row = scoring_matrix[seq_x[idx-1]]
+        score_row = scoring_matrix[seq_x[idx-1]]
+        partial_eval = np.vstack(
+            (prevrow[1:] + SCORE_EMPTY,
+             prevrow[:-1] + [score_row[each] for each in seq_y],
+             partial_zeros)
+            )
+        maximums = partial_eval.max(axis=0)
         for jdx in range(lensecond):
-            #np.meshgrid(, sparse=True)
-            #currow[jdx] = np.max(
-            currow[jdx+1] = max(
-                (prevrow[jdx] + matr_row[seq_y[jdx]]),
-                (prevrow[jdx+1] + SCORE_EMPTY),
-                (currow[jdx] + SCORE_EMPTY), 0)            
+            candy = maximums[jdx]
+            other = currow[jdx] + SCORE_EMPTY
+            if candy > other:
+                currow[jdx+1] = candy
+            else:
+                currow[jdx+1] = other
+    #[/critical code]
     return matr
 
 
 def compute_local_alignment(seq_x, seq_y, scoring_matrix, alignment_matrix):
-    maxpos = max(((hoel, (idx, jdx)) for idx, line in enumerate(alignment_matrix) for (jdx, hoel) in enumerate(line)), key=lambda x: x[0])
-    idx, jdx = maxpos[1]
+    idx, jdx = np.unravel_index(alignment_matrix.argmax(), alignment_matrix.shape)   
     xslash, yslash = deque(), deque()
     total = 0
     while idx and jdx:
         if alignment_matrix[idx][jdx] == 0:
             break
-        total = max(total, alignment_matrix[idx][jdx])
-        if alignment_matrix[idx][jdx] == alignment_matrix[idx-1][jdx-1] +\
+        total = max(total, alignment_matrix[idx,jdx])
+        if alignment_matrix[idx,jdx] == alignment_matrix[idx-1,jdx-1] +\
            scoring_matrix[seq_x[idx-1]][seq_y[jdx-1]]:
             xslash.appendleft(seq_x[idx-1])
             yslash.appendleft(seq_y[jdx-1])
             idx -= 1
             jdx -= 1
-        elif alignment_matrix[idx][jdx] == alignment_matrix[idx-1][jdx] +\
+        elif alignment_matrix[idx,jdx] == alignment_matrix[idx-1,jdx] +\
              scoring_matrix[seq_x[idx-1]][0]:
             xslash.appendleft(seq_x[idx-1])
             yslash.appendleft(0)
@@ -101,13 +108,13 @@ def compute_local_alignment(seq_x, seq_y, scoring_matrix, alignment_matrix):
             yslash.appendleft(seq_y[jdx-1])
             jdx -= 1
     while idx != 0:
-        if alignment_matrix[idx][jdx] == 0:
+        if alignment_matrix[idx,jdx] == 0:
             break
         xslash.appendleft(seq_x[idx-1])
         yslash.appendleft(0)
         idx -= 1
     while jdx != 0:
-        if alignment_matrix[idx][jdx] == 0:
+        if alignment_matrix[idx,jdx] == 0:
             break
         xslash.appendleft(0)
         yslash.appendleft(seq_y[jdx-1])
@@ -121,8 +128,9 @@ def compute_alignment_helper(seq_x, seq_y, scor_mat):
 
 
 def search_samples(seq_1, seq_2, score_matrix=None):
-    print("[!] Searching {} \n {}".format(seq_1.name, seq_2.name))
-    seq_1_nparray, seq_2_nparray = np.array(seq_1), np.array(seq_2)
+    #print("[!] Searching {} \n {}".format(seq_1.name, seq_2.name))
+    seq_1_nparray, seq_2_nparray = np.asarray(seq_1), np.asarray(seq_2)
+    
     res = compute_alignment_helper(seq_1_nparray, seq_2_nparray, score_matrix)
     score = res[0]
     if score >= 85:
@@ -134,7 +142,7 @@ def search_samples(seq_1, seq_2, score_matrix=None):
         return score
     return 0
     
-
+#@profiler.do_profile
 def test_match():
     with h5py.File(KBASE_FILE, 'r', driver='core') as h5file:
         kbase = h5file['knowledgebase']

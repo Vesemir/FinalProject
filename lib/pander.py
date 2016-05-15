@@ -151,11 +151,8 @@ def find_call(call=None, call_name=None):
                 print("[!] FOUND CALL IN {}!".format(_hash))
                 print(' -> '.join(revmapping.get(each, 'Unk') if each != '-' else 'Skipped' for each in array[index:index+20]))                
 
-c_mapping = None
-
 
 def cached_mapping(func):
-    global c_mapping
     with open(MAPPING, 'r') as inp:
         c_mapping = json.load(inp)
         rev_mapping = {value: key for (key, value) in c_mapping.items()}
