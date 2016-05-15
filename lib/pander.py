@@ -95,19 +95,24 @@ def extend_name(fname, series, imagename):
             found = find_reg_match(series['regkey'], REG_BRANCHES)
             if found:
                 fname += '.' + REG_BRANCHES[found]
-            if imagename in series['regkey']:
+            if imagename in series['regkey'].lower():
+                
+                fname += '.SelfImageName'
+    elif 'createsemaphore' in fname:
+        if series.get('name') not in (None, np.nan, ''):
+            if imagename in series['name'].lower():
                 fname += '.SelfImageName'
     elif any(each in fname for each in ('strcmp',
                                         'comparestring')):
         if series.get('string1') not in (None, np.nan, ''):
-            if imagename in series['string1']:
+            if imagename in series['string1'].lower():
                 fname += '.SelfImageName'
         if series.get('string2') not in (None, np.nan, ''):
-            if imagename in series['string2']:
+            if imagename in series['string2'].lower():
                 fname += '.SelfImageName'
     elif 'strcpy' in fname:
         if series.get('src_string') not in (None, np.nan, ''):
-            if imagename in series['src_string']:
+            if imagename in series['src_string'].lower():
                 fname += '.SelfImageName'
     elif 'cocreateinstance' in fname:
         fname += '.' + series['clsctx']
@@ -162,7 +167,6 @@ def cached_mapping(func):
     return retfunc
     
 
-
 @cached_mapping
 def sequence_to_list(src, mapping=None, revmapping=None):
     if isinstance(src, str):
@@ -176,14 +180,15 @@ def sequence_to_list(src, mapping=None, revmapping=None):
     prev_call = ''
     combo = 1
     for each in array:
-        next_call = revmapping.get(each) if each != 0 else 'Skipped'
+        cur_call = revmapping.get(each) if each != 0 else 'Skipped'
         
-        if prev_call != next_call:
-            result += ' -> ' + next_call if combo == 1 else ' -> %dx ' % combo + next_call
+        if prev_call != cur_call:
+            result += ' -> ' + prev_call if combo == 1 else ' -> %dx ' % combo + prev_call
             combo = 1
         else:
             combo += 1
-        prev_call = next_call
+        prev_call = cur_call
+    result += ' -> ' + cur_call if combo == 1 else ' -> %dx ' % combo + cur_call
     return result
 
 
@@ -297,11 +302,11 @@ def process_all_logs(target_group='knowledgebase'):
     else:
         print("[+] Found ready mapping, loading ...")
         with open(MAPPING) as inp:
-            mapping = json.load(inp)
+            mapping = json.load(inp, object_pairs_hook=OrderedDict)
             print("[!] Loaded : {}".format(mapping))
     with h5py.File(KBASE_FILE, 'a') as h5file:
         kbase = h5file.create_group(target_group)
-        raw_files(RAW_DIR, fileparse(sink(kbase, mapping)))
+        raw_files(os.path.join(RAW_DIR, 'train'), fileparse(sink(kbase, mapping)))
         
     print("[!] Dumping renewed of size {} mapping back to file".format(len(mapping)))
     with open(MAPPING, 'w') as outp:
@@ -310,6 +315,6 @@ def process_all_logs(target_group='knowledgebase'):
 
 
 if __name__ == '__main__':
-    process_all_logs(target_group='test_samples')
+    process_all_logs()#target_group='test_samples')
     
         

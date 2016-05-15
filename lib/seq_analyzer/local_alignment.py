@@ -58,7 +58,7 @@ def build_scoring_matrix(size,
 #@profiler.do_profile
 def compute_alignment_matrix(seq_x, seq_y, scoring_matrix, size):
     lenfirst, lensecond = len(seq_x), len(seq_y)
-    matr = np.zeros((lenfirst + 1, lensecond + 1), dtype=np.int32)
+    matr = np.zeros((lenfirst + 1, lensecond + 1))
     partial_zeros = np.zeros(lensecond)
     
     keyarray = np.arange(len(scoring_matrix))
@@ -66,7 +66,8 @@ def compute_alignment_matrix(seq_x, seq_y, scoring_matrix, size):
     for idx in range(1, lenfirst + 1):
         prevrow = matr[idx-1]
         currow = matr[idx]
-        score_row = scoring_matrix[seq_x[idx-1]]
+        score_row = scoring_matrix[seq_x[idx-1]] # bugged
+        #IndexError: index 1361 is out of bounds for axis 0 with size 1361
         idx = np.searchsorted(keyarray, seq_y)
         mapped = score_row[idx]
         
@@ -150,29 +151,33 @@ def test_match():
     with h5py.File(KBASE_FILE, 'r', driver='core') as h5file:
         kbase = h5file['knowledgebase']
         samples = h5file['test_samples']
-        sample_names = [each for each in samples]
-        first_sample = sample_names[237]# was 37
-        sample_whole_score = 0
-        similar_count = 0
-        avg_cur = 0
-        started = time.perf_counter()
-        cycle_counter = 0
+        #first_sample = sample_names[237]# was 37
+        
+        temp_time = started = time.perf_counter()
+        
         scor_mat = build_scoring_matrix(MAPPING_SIZE)
-        for sampledata, sampledata_other in product((kbase[sample] for sample in kbase), (samples[first_sample],)):
-            found_match = search_samples(sampledata, sampledata_other, score_matrix=scor_mat, size=MAPPING_SIZE)
-            if found_match:
-                sample_whole_score += found_match
-                similar_count += 1
-                avg_cur = sample_whole_score / similar_count
-            if found_match > 800:
-                print("[!] With high confidence it's a virus !")
-                break
-            
-            cycle_counter += 1
-        avg_score = sample_whole_score / similar_count
-        print('[!] Total average score on found sequences is {}'.format(avg_score))
-
-        print("[!] Comparison took {} seconds and finished on {} comparison".format(time.perf_counter() - started, cycle_counter))
+        for idx, test_sample_name in enumerate(samples):
+            cycle_counter = 0
+            sample_whole_score = 0
+            similar_count = 0
+            avg_cur = 0
+            for trained_sample_name in kbase:
+                trained_sample = kbase[trained_sample_name]
+                test_sample = samples[test_sample_name]
+                found_match = search_samples(trained_sample, test_sample, score_matrix=scor_mat, size=MAPPING_SIZE)
+                if found_match:
+                    sample_whole_score += found_match
+                    similar_count += 1
+                    avg_cur = sample_whole_score / similar_count
+                if found_match > 800:
+                    print("[!] With high confidence it's a virus !")
+                    break
+                
+                cycle_counter += 1
+            print('[!] Total average score on found sequences is {}'.format(avg_cur))
+            print("[!] Comparison took {} seconds and finished on {} comparison".format(time.perf_counter() - temp_time, cycle_counter))
+            temp_time = time.perf_counter()
+        print("[!] Run took {} seconds and finished on {} comparison".format(time.perf_counter() - started, cycle_counter))
 
 
 if __name__ == '__main__':
