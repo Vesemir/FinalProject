@@ -20,14 +20,23 @@ SCORE_MATCH = 10
 SCORE_EMPTY = -6
 SCORE_DIFFERENT = -2
 
-MUTED_CALLS = [16, 24, 25, 157, 32, 40, 23, 72, 45, 30, 49, 386]
+MUTED_NAMES = [
+    "kernel32.getstringtype", "kernel32.getlasterror", "kernel32.setlasterror", "kernel32.isdbcsleadbyte",
+    "kernel32.regkrngetglobalstate", "kernel32.interlockedexchange", "kernel32.interlockedincrement",
+    "kernel32.interlockeddecrement", "kernel32.interlockedcompareexchange",
+    "kernel32.initializecriticalsectionandspincount", "kernel32.heapfree",
+    "kernel32.interlockedexchangeadd"
+    ]
+MUTED_CALLS = None
 
 @cached_mapping
 def important_numbers(dummy, mapping=None, revmapping=None):
+    global MUTED_CALLS
     imp_functions = important_functions()
     imp_numbers = [item for key, item in mapping.items() if
                    any(func in key for func in imp_functions)]
     mapping_size = max(revmapping)
+    MUTED_CALLS = [mapping.get(each) for each in MUTED_NAMES]
     return imp_numbers, mapping_size
 
 IMPORTANT_CALLS, MAPPING_SIZE = important_numbers(None)
@@ -137,7 +146,7 @@ def search_samples(seq_1, seq_2, score_matrix=None, size=None):
     
     res = compute_alignment_helper(seq_1_nparray, seq_2_nparray, score_matrix, size)
     score = res[0]
-    if score >= 85:
+    if score >= 120:
         print("*" * 20 + "\nSCORE : {}\n\n{} :\n {}\n{} :\n {}\n".format(
             res[0], seq_1.name, sequence_to_list(res[1]),
             seq_2.name, sequence_to_list(res[2])

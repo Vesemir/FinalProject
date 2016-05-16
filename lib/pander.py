@@ -80,8 +80,12 @@ def find_reg_match(partial_path, reg_dict):
 
 def extend_name(fname, series, imagename):
     if 'getprocaddress' in fname:
-        if series.get('funcname') in IMPORTANT_FUNCTIONS:
-            fname += '.' + series['funcname']
+        if series.get('funcname') not in (None, np.nan, ''):
+            name = series['funcname']
+            if name.isalpha():
+                if any(name.endswith(each) for each in ('A', 'W')):
+                    name = name[:-1]
+                fname += '.' + name
     elif 'loadlibrary' in fname:
         if series.get('libname') in DANGEROUS_LIBS:
             fname += '.' + DANGEROUS_LIBS[series['libname']]
@@ -159,7 +163,7 @@ def find_call(call=None, call_name=None):
 
 def cached_mapping(func):
     with open(MAPPING, 'r') as inp:
-        c_mapping = json.load(inp)
+        c_mapping = json.load(inp, object_pairs_hook=OrderedDict)
         rev_mapping = {value: key for (key, value) in c_mapping.items()}
         print("[!] Succesfully loaded mapping")        
     def retfunc(args, **kwargs):
@@ -198,6 +202,9 @@ def dframe_to_sequence(dframe, filename='sample', knowledge=None, mapping=None):
     
     for _, series in dframe.iterrows():
         record = '.'.join((series['dllname'], series['call']))
+        if any(record.endswith(each) for each in ('a', 'w')):
+            if not record.endswith('ow'):
+                record = record[:-1]
         seq_name = extend_name(record, series, filename)
         query_mapping = mapping.get(seq_name)
         
@@ -295,10 +302,10 @@ def raw_files(logdir, fileparser):
     print('[!] A total of {} logfiles present'.format(ctr))
 
 
-def process_all_logs(target_group='knowledgebase'):
+def process_all_logs(target_group='knowledgebase', src_dir=os.path.join(RAW_DIR, 'train')):
     if not os.path.isfile(MAPPING):
         print("[-] No mapping found, creating new one ...")
-        mapping = dict()
+        mapping = OrderedDict()
     else:
         print("[+] Found ready mapping, loading ...")
         with open(MAPPING) as inp:
@@ -306,7 +313,7 @@ def process_all_logs(target_group='knowledgebase'):
             print("[!] Loaded : {}".format(mapping))
     with h5py.File(KBASE_FILE, 'a') as h5file:
         kbase = h5file.create_group(target_group)
-        raw_files(os.path.join(RAW_DIR, 'train'), fileparse(sink(kbase, mapping)))
+        raw_files(src_dir, fileparse(sink(kbase, mapping)))
         
     print("[!] Dumping renewed of size {} mapping back to file".format(len(mapping)))
     with open(MAPPING, 'w') as outp:
@@ -315,6 +322,8 @@ def process_all_logs(target_group='knowledgebase'):
 
 
 if __name__ == '__main__':
-    process_all_logs()#target_group='test_samples')
+    process_all_logs(target_group='test_samples', src_dir=RAW_DIR)
+    process_all_logs()
+    
     
         
