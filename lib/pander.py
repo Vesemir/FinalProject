@@ -85,7 +85,7 @@ def extend_name(fname, series, imagename):
             if name.isalpha():
                 if any(name.endswith(each) for each in ('A', 'W')):
                     name = name[:-1]
-                fname += '.' + name
+                fname += '.' + name.lower()
     elif 'loadlibrary' in fname:
         if series.get('libname') in DANGEROUS_LIBS:
             fname += '.' + DANGEROUS_LIBS[series['libname']]
