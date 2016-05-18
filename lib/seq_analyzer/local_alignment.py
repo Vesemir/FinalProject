@@ -8,10 +8,14 @@ from itertools import combinations, product
 from collections import deque
 
 
+
 import time
 
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(CURDIR, os.pardir))
+import scoring.scoring.compare_samples
+from scoring.scoring.compare_samples import compute_alignment_matrix as align
+from scoring.scoring.compare_samples import build_scoring_matrix as build_sm
 from profiling import profiler
 from pander import sequence_to_list, important_functions, cached_mapping, KBASE_FILE
 SEQ_LOGS = os.path.join(CURDIR, 'datas')
@@ -27,19 +31,20 @@ MUTED_NAMES = [
     "kernel32.initializecriticalsectionandspincount", "kernel32.heapfree",
     "kernel32.interlockedexchangeadd"
     ]
-MUTED_CALLS = None
+
 
 @cached_mapping
 def important_numbers(dummy, mapping=None, revmapping=None):
-    global MUTED_CALLS
     imp_functions = important_functions()
-    imp_numbers = [item for key, item in mapping.items() if
-                   any(func in key for func in imp_functions)]
+    imp_numbers = np.array([item for key, item in mapping.items() if
+                   any(func in key for func in imp_functions)],
+                           dtype=np.int32)
     mapping_size = max(revmapping)
-    MUTED_CALLS = [mapping.get(each) for each in MUTED_NAMES]
-    return imp_numbers, mapping_size
+    muted = np.array([mapping.get(each) for each in MUTED_NAMES],
+                     dtype=np.int32)
+    return imp_numbers, mapping_size, muted
 
-IMPORTANT_CALLS, MAPPING_SIZE = important_numbers(None)
+IMPORTANT_CALLS, MAPPING_SIZE, MUTED_CALLS = important_numbers(None)
 
 
 def build_scoring_matrix(size,
@@ -47,7 +52,7 @@ def build_scoring_matrix(size,
                          off_diag_score=SCORE_DIFFERENT,
                          dash_score=SCORE_EMPTY):
     numbers = range(size + 1)
-    matr = np.zeros((size + 1, size + 1))
+    matr = np.zeros((size + 1, size + 1), dtype=np.int32)
     for symrow in numbers:
         for symcol in numbers:
             if not symcol or not symrow:
@@ -62,10 +67,10 @@ def build_scoring_matrix(size,
             elif symcol != symrow:
                 matr[symrow][symcol] = off_diag_score
     return matr
-    
+
 
 #@profiler.do_profile
-def compute_alignment_matrix(seq_x, seq_y, scoring_matrix, size):
+def compute_alignment_matrix(seq_x, seq_y, scoring_matrix):
     lenfirst, lensecond = len(seq_x), len(seq_y)
     matr = np.zeros((lenfirst + 1, lensecond + 1))
     partial_zeros = np.zeros(lensecond)
@@ -106,13 +111,13 @@ def compute_local_alignment(seq_x, seq_y, scoring_matrix, alignment_matrix):
             break
         total = max(total, alignment_matrix[idx,jdx])
         if alignment_matrix[idx,jdx] == alignment_matrix[idx-1,jdx-1] +\
-           scoring_matrix[seq_x[idx-1]][seq_y[jdx-1]]:
+           scoring_matrix[seq_x[idx-1],seq_y[jdx-1]]:
             xslash.appendleft(seq_x[idx-1])
             yslash.appendleft(seq_y[jdx-1])
             idx -= 1
             jdx -= 1
         elif alignment_matrix[idx,jdx] == alignment_matrix[idx-1,jdx] +\
-             scoring_matrix[seq_x[idx-1]][0]:
+             scoring_matrix[seq_x[idx-1],0]:
             xslash.appendleft(seq_x[idx-1])
             yslash.appendleft(0)
             idx -= 1
@@ -135,15 +140,10 @@ def compute_local_alignment(seq_x, seq_y, scoring_matrix, alignment_matrix):
     return total, xslash, yslash
 
 
-def compute_alignment_helper(seq_x, seq_y, scor_mat, size):
-    align_mat = compute_alignment_matrix(seq_x, seq_y, scor_mat, size)
-    return compute_local_alignment(seq_x, seq_y, scor_mat, align_mat)
-
-
 def search_samples(seq_1, seq_2, score_matrix=None, size=None):
     #print("[!] Searching {} \n {}".format(seq_1.name, seq_2.name))
-        
-    res = compute_alignment_helper(seq_1, seq_2, score_matrix, size)
+    align_mat = align(seq_1, seq_2, score_matrix)
+    res = compute_local_alignment(seq_1, seq_2, score_matrix, align_mat)
     score = res[0]
     if score >= 85:
         return res
@@ -161,7 +161,7 @@ def report_match(first_seq, second_seq, name1, name2, score):
               )
           )
     
-#@profiler.do_profile
+@profiler.do_profile
 def test_match():
     with h5py.File(KBASE_FILE, 'r', driver='core') as h5file:
         kbase = h5file['knowledgebase']
@@ -171,7 +171,7 @@ def test_match():
         
         temp_time = started = time.perf_counter()
         
-        scor_mat = build_scoring_matrix(MAPPING_SIZE)
+        scor_mat = build_sm(MAPPING_SIZE, MUTED_CALLS, IMPORTANT_CALLS)
         for idx, test_sample_name in enumerate(sampless[237:]):
             cycle_counter = 0
             sample_whole_score = 0
@@ -180,11 +180,10 @@ def test_match():
             for trained_sample_name in kbase:
                 trained_sample = kbase[trained_sample_name]
                 test_sample = samples[test_sample_name]
-                train, test = np.asarray(trained_sample), np.asarray(test_sample)
+                train, test = np.array(trained_sample), np.array(test_sample)
                 size = min(map(len, (train, test)))
                 found_match = search_samples(train, test,
-                                             score_matrix=scor_mat,
-                                             size=MAPPING_SIZE)
+                                             score_matrix=scor_mat)
                 
                 if found_match:
                     score = found_match[0]
@@ -198,11 +197,13 @@ def test_match():
                     avg_cur = sample_whole_score / similar_count
                     if score > 800:#5 * size:
                         print("[!] With high confidence of {} it's a virus !".format(score))
+                        
                         break
                 
                 cycle_counter += 1
             print('[!] Total average score on found sequences is {}'.format(avg_cur))
             print("[!] Comparison took {} seconds and finished on {} comparison".format(time.perf_counter() - temp_time, cycle_counter))
+            assert False, 'no'
             temp_time = time.perf_counter()
         print("[!] Run took {} seconds and finished on {} comparison".format(time.perf_counter() - started, cycle_counter))
 
