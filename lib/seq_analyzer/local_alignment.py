@@ -140,16 +140,15 @@ def compute_alignment_helper(seq_x, seq_y, scor_mat, size):
     return compute_local_alignment(seq_x, seq_y, scor_mat, align_mat)
 
 
-def search_samples(seq_1, seq_2, score_matrix=None, size=None):
+def search_samples(seq_1, seq_2, name1, name2, score_matrix=None, size=None):
     #print("[!] Searching {} \n {}".format(seq_1.name, seq_2.name))
-    seq_1_nparray, seq_2_nparray = np.asarray(seq_1), np.asarray(seq_2)
-    
-    res = compute_alignment_helper(seq_1_nparray, seq_2_nparray, score_matrix, size)
+        
+    res = compute_alignment_helper(seq_1, seq_2, score_matrix, size)
     score = res[0]
-    if score >= 120:
+    if score >= 85:
         print("*" * 20 + "\nSCORE : {}\n\n{} :\n {}\n{} :\n {}\n".format(
-            res[0], seq_1.name, sequence_to_list(res[1]),
-            seq_2.name, sequence_to_list(res[2])
+            res[0], name1, sequence_to_list(res[1]),
+            name2, sequence_to_list(res[2])
             )
               )
         return score
@@ -160,12 +159,13 @@ def test_match():
     with h5py.File(KBASE_FILE, 'r', driver='core') as h5file:
         kbase = h5file['knowledgebase']
         samples = h5file['test_samples']
+        sampless = list(samples.keys())
         #first_sample = sample_names[237]# was 37
         
         temp_time = started = time.perf_counter()
         
         scor_mat = build_scoring_matrix(MAPPING_SIZE)
-        for idx, test_sample_name in enumerate(samples):
+        for idx, test_sample_name in enumerate(sampless[237:]):
             cycle_counter = 0
             sample_whole_score = 0
             similar_count = 0
@@ -173,13 +173,19 @@ def test_match():
             for trained_sample_name in kbase:
                 trained_sample = kbase[trained_sample_name]
                 test_sample = samples[test_sample_name]
-                found_match = search_samples(trained_sample, test_sample, score_matrix=scor_mat, size=MAPPING_SIZE)
+                train, test = np.asarray(trained_sample), np.asarray(test_sample)
+                size = min(map(len, (train, test)))
+                found_match = search_samples(train, test,
+                                             trained_sample.name,
+                                             test_sample.name,
+                                             score_matrix=scor_mat,
+                                             size=MAPPING_SIZE)
                 if found_match:
                     sample_whole_score += found_match
                     similar_count += 1
                     avg_cur = sample_whole_score / similar_count
-                if found_match > 800:
-                    print("[!] With high confidence it's a virus !")
+                if found_match > 800:#5 * size:
+                    print("[!] With high confidence of {} it's a virus !".format(found_match))
                     break
                 
                 cycle_counter += 1

@@ -100,8 +100,13 @@ def extend_name(fname, series, imagename):
             if found:
                 fname += '.' + REG_BRANCHES[found]
             if imagename in series['regkey'].lower():
-                
                 fname += '.SelfImageName'
+            if '{' in series['regkey']:
+                checked_str = ''.join(series['regkey'].split())
+                for _id, value in CLSIDS.items():
+                    if _id in checked_str:
+                        fname += '.' + value
+                
     elif 'createsemaphore' in fname:
         if series.get('name') not in (None, np.nan, ''):
             if imagename in series['name'].lower():
@@ -118,6 +123,14 @@ def extend_name(fname, series, imagename):
         if series.get('src_string') not in (None, np.nan, ''):
             if imagename in series['src_string'].lower():
                 fname += '.SelfImageName'
+    elif 'strlen' in fname:
+        if series.get('string') not in (None, np.nan, ''):
+            if '{' in series['string']:
+                checked_str = ''.join(series['string'].split())
+                for _id, value in CLSIDS.items():
+                    if _id in checked_str:
+                        fname += '.' + value
+                
     elif 'cocreateinstance' in fname:
         fname += '.' + series['clsctx']
     elif any(each in fname for each in ('createfile',
@@ -310,7 +323,7 @@ def process_all_logs(target_group='knowledgebase', src_dir=os.path.join(RAW_DIR,
         print("[+] Found ready mapping, loading ...")
         with open(MAPPING) as inp:
             mapping = json.load(inp, object_pairs_hook=OrderedDict)
-            print("[!] Loaded : {}".format(mapping))
+            print("[!] Loaded.")
     with h5py.File(KBASE_FILE, 'a') as h5file:
         kbase = h5file.create_group(target_group)
         raw_files(src_dir, fileparse(sink(kbase, mapping)))

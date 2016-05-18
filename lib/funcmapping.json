@@ -4371,5 +4371,11 @@
     "kernel32.getprocaddress.canceldc": 4370,
     "kernel32.getprocaddress.gdicomment": 4371,
     "kernel32.getprocaddress.ddeabandontransaction": 4372,
-    "kernel32.openfile.OF_CREATE|OF_READWRITE": 4373
+    "kernel32.openfile.OF_CREATE|OF_READWRITE": 4373,
+    "kernel32.lstrlen.Computer": 4374,
+    "kernel32.lstrlen.Documents": 4375,
+    "kernel32.lstrlen.Recycle_Bin": 4376,
+    "kernel32.regopenkeyex.Computer": 4377,
+    "kernel32.regopenkeyex.Documents": 4378,
+    "kernel32.regopenkeyex.Recycle_Bin": 4379
 }
