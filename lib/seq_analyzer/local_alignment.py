@@ -151,7 +151,7 @@ def search_samples(seq_1, seq_2, score_matrix=None, size=None):
 
 
 def report_match(first_seq, second_seq, name1, name2, score):
-    print("*" * 20 +
+    return "*" * 20 +\
           "\nSCORE : {}\n\n{} :\n {}\n{} :\n {}\n".format(
               score,
               name1,
@@ -159,7 +159,7 @@ def report_match(first_seq, second_seq, name1, name2, score):
               name2,
               sequence_to_list(second_seq)
               )
-          )
+
     
 @profiler.do_profile
 def test_match():
@@ -173,14 +173,20 @@ def test_match():
         
         scor_mat = build_sm(MAPPING_SIZE, MUTED_CALLS, IMPORTANT_CALLS)
         for idx, test_sample_name in enumerate(sampless[237:]):
+            print("[!] Searching {} \n".format(test_sample_name))
             cycle_counter = 0
             sample_whole_score = 0
             similar_count = 0
             avg_cur = 0
+            max_cur = 0
+            score = 0
+            partial_report = ''
             for trained_sample_name in kbase:
+                if cycle_counter % 1000 == 0:
+                    print("[!] Number {}".format(cycle_counter))
                 trained_sample = kbase[trained_sample_name]
                 test_sample = samples[test_sample_name]
-                train, test = np.array(trained_sample), np.array(test_sample)
+                train, test = np.asarray(trained_sample), np.asarray(test_sample)
                 size = min(map(len, (train, test)))
                 found_match = search_samples(train, test,
                                              score_matrix=scor_mat)
@@ -188,23 +194,32 @@ def test_match():
                 if found_match:
                     score = found_match[0]
                     first_seq, second_seq = found_match[1], found_match[2]
-                    report_match(first_seq, second_seq,
-                                 trained_sample.name, test_sample.name,
-                                 score)
-                                        
+                    #report_match(first_seq, second_seq,
+                    #             trained_sample.name, test_sample.name,
+                    #             score)
+                    if max_cur < score:
+                        max_cur = score
+                        partial_report = report_match(
+                            first_seq, second_seq,
+                            trained_sample.name, test_sample.name,
+                            score)
                     sample_whole_score += score
                     similar_count += 1
                     avg_cur = sample_whole_score / similar_count
-                    if score > 800:#5 * size:
+                    if score > 300:#5 * size:
                         print("[!] With high confidence of {} it's a virus !".format(score))
-                        
+                        report = report_match(first_seq, second_seq,
+                                     trained_sample.name, test_sample.name,
+                                              score)
+                        print(report)
                         break
-                
                 cycle_counter += 1
-            print('[!] Total average score on found sequences is {}'.format(avg_cur))
+            else:
+                print('[!] No match reaching threshold found;\nTotal average score on found sequences is {}, \n max match: {}'.format(avg_cur, partial_report))
             print("[!] Comparison took {} seconds and finished on {} comparison".format(time.perf_counter() - temp_time, cycle_counter))
             assert False, 'no'
             temp_time = time.perf_counter()
+        
         print("[!] Run took {} seconds and finished on {} comparison".format(time.perf_counter() - started, cycle_counter))
 
 

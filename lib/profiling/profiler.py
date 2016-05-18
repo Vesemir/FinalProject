@@ -1,4 +1,4 @@
-import cProfile
+import cProfile, pstats
 
 def do_profile(func):
     def profiling_func(*args, **kwargs):
@@ -9,5 +9,7 @@ def do_profile(func):
             profiler.disable()
             return result
         finally:
-            profiler.print_stats()
+            sortkey = 'tottime'
+            result = pstats.Stats(profiler).sort_stats(sortkey)
+            result.print_stats()
     return profiling_func
