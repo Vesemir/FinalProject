@@ -1,5 +1,6 @@
 import numpy as np
 cimport numpy as np
+cimport cython
 
 DINT32 = np.int32
 DFLOAT64 = np.float64
