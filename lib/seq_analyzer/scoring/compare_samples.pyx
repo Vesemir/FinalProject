@@ -40,7 +40,8 @@ def build_scoring_matrix(int size,
                 matr[symrow,symcol] = off_diag_score
     return matr
 
-
+@cython.boundscheck(False)
+@cython.wraparound(False)
 def compute_alignment_matrix(np.ndarray[DINT32_t, ndim=1] seq_x,
                              np.ndarray[DINT32_t, ndim=1] seq_y,
                              np.ndarray[DINT32_t, ndim=2] scoring_matrix):
