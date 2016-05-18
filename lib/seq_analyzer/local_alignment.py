@@ -77,8 +77,8 @@ def compute_alignment_matrix(seq_x, seq_y, scoring_matrix, size):
         currow = matr[idx]
         score_row = scoring_matrix[seq_x[idx-1]] # bugged
         #IndexError: index 1361 is out of bounds for axis 0 with size 1361
-        idx = np.searchsorted(keyarray, seq_y)
-        mapped = score_row[idx]
+        _idx = np.searchsorted(keyarray, seq_y)
+        mapped = score_row[_idx]
         
         partial_eval = np.vstack(
             (prevrow[1:] + SCORE_EMPTY,
@@ -140,19 +140,26 @@ def compute_alignment_helper(seq_x, seq_y, scor_mat, size):
     return compute_local_alignment(seq_x, seq_y, scor_mat, align_mat)
 
 
-def search_samples(seq_1, seq_2, name1, name2, score_matrix=None, size=None):
+def search_samples(seq_1, seq_2, score_matrix=None, size=None):
     #print("[!] Searching {} \n {}".format(seq_1.name, seq_2.name))
         
     res = compute_alignment_helper(seq_1, seq_2, score_matrix, size)
     score = res[0]
     if score >= 85:
-        print("*" * 20 + "\nSCORE : {}\n\n{} :\n {}\n{} :\n {}\n".format(
-            res[0], name1, sequence_to_list(res[1]),
-            name2, sequence_to_list(res[2])
-            )
-              )
-        return score
+        return res
     return 0
+
+
+def report_match(first_seq, second_seq, name1, name2, score):
+    print("*" * 20 +
+          "\nSCORE : {}\n\n{} :\n {}\n{} :\n {}\n".format(
+              score,
+              name1,
+              sequence_to_list(first_seq),
+              name2,
+              sequence_to_list(second_seq)
+              )
+          )
     
 #@profiler.do_profile
 def test_match():
@@ -176,17 +183,22 @@ def test_match():
                 train, test = np.asarray(trained_sample), np.asarray(test_sample)
                 size = min(map(len, (train, test)))
                 found_match = search_samples(train, test,
-                                             trained_sample.name,
-                                             test_sample.name,
                                              score_matrix=scor_mat,
                                              size=MAPPING_SIZE)
+                
                 if found_match:
-                    sample_whole_score += found_match
+                    score = found_match[0]
+                    first_seq, second_seq = found_match[1], found_match[2]
+                    report_match(first_seq, second_seq,
+                                 trained_sample.name, test_sample.name,
+                                 score)
+                                        
+                    sample_whole_score += score
                     similar_count += 1
                     avg_cur = sample_whole_score / similar_count
-                if found_match > 800:#5 * size:
-                    print("[!] With high confidence of {} it's a virus !".format(found_match))
-                    break
+                    if score > 800:#5 * size:
+                        print("[!] With high confidence of {} it's a virus !".format(score))
+                        break
                 
                 cycle_counter += 1
             print('[!] Total average score on found sequences is {}'.format(avg_cur))
