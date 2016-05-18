@@ -43,6 +43,22 @@ def important_functions():
     return wholedict
 
 
+def tuplicate(onecall):
+    retval = OrderedDict()
+    sequence = [val for val in onecall.split('\n') if val]
+    call = sequence.pop(0).split(':')[1].strip()
+    lib, func = call.split('.')
+    retval['dllname'] = lib
+    retval['call'] = func
+    for extraarg in sequence:
+        sep_pos = extraarg.find(':')
+        if sep_pos != -1:
+            name, value = extraarg[:sep_pos], extraarg[sep_pos+1:]
+        name = name.replace('LOOKING UP', '').strip()
+        retval[name] = value.strip()
+    return retval
+
+
 MORE_FUNCTIONS = set([
     'findfirstfile', 'createdirectory', 'createsemaphore',
     'messagebox', 'shellexecute', 'registerwindowsmessage',
@@ -56,11 +72,24 @@ IMPORTANT_FUNCTIONS = set(important_functions().keys()
 punctuation = (':', ' ', '.', '\n', '\\', '_', '{', '}', '-', '<', '>')
 
 lexem = p.some(lambda x: x is not '*')#or x.isalpha() or x.isdigit() or x in punctuation)
+concat = (lambda seq: ''.join(seq))
+
 
 endl = p.skip(p.maybe(p.a('\n')))
 stars = p.skip(p.oneplus(p.a('*')))
+singlecall = stars + endl +\
+             p.oneplus(lexem) +\
+             stars + endl >> concat >> tuplicate
 
-concat = (lambda seq: ''.join(seq))
+#manycalls = p.many(singlecall + endl)# I'm deeply sorry, but it seems that I failed to use that library for now
+manycalls = lambda x: [tuplicate(each.strip('\n')) for each in
+                                re.compile(r'\*\*\*\*\*(.+?)\*\*\*\*\*',
+                                           re.DOTALL).findall(x)
+                                ]
+
+
+
+
 
 
 REGISTRY_MAPPING = {'HKLM': 'HKEY_LOCAL_MACHINE',
@@ -234,31 +263,8 @@ def dframe_to_sequence(dframe, filename='sample', knowledge=None, mapping=None):
     results = np.asarray(current)
     #print('[!] Saving {}\'s results to file'.format(filename))
     knowledge.create_dataset(filename, data=results)
-    
-
-def tuplicate(onecall):
-    retval = OrderedDict()
-    sequence = [val for val in onecall.split('\n') if val]
-    call = sequence.pop(0).split(':')[1].strip()
-    lib, func = call.split('.')
-    retval['dllname'] = lib
-    retval['call'] = func
-    for extraarg in sequence:
-        sep_pos = extraarg.find(':')
-        if sep_pos != -1:
-            name, value = extraarg[:sep_pos], extraarg[sep_pos+1:]
-        name = name.replace('LOOKING UP', '').strip()
-        retval[name] = value.strip()
-    return retval
-    
-
-singlecall = stars + endl +\
-             p.oneplus(lexem) +\
-             stars + endl >> concat >> tuplicate
-
-manycalls = p.many(singlecall + endl)
-
-             
+   
+            
 def coroutine(func):
     def wrapper(*args, **kwargs):
         wrap = func(*args, **kwargs)
@@ -288,7 +294,7 @@ def fileparse(target):
         #print('[!] There are logs for {} sample'.format(filepath))
         with open(filepath, encoding='ascii', errors='ignore') as raw:
             buff = raw.read().replace('\x00', ' ')
-            reslist = manycalls.parse(buff)
+            reslist = manycalls(buff)
                        
             samplename = os.path.basename(os.path.dirname(filepath))
             if reslist:
@@ -337,6 +343,7 @@ def process_all_logs(target_group='knowledgebase', src_dir=os.path.join(RAW_DIR,
 if __name__ == '__main__':
     process_all_logs(target_group='test_samples', src_dir=RAW_DIR)
     process_all_logs()
+    pass
     
     
         
