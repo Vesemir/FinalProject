@@ -1,11 +1,11 @@
 \documentclass[a4paper,14pt]{extarticle}
 
 \makeatletter
-\renewcommand\@biblabel[1]{#1.}
+\renewcommand\@biblabel[1]{#1}
 \makeatother
 \usepackage[utf8] {inputenc}
 \usepackage[russian] {babel}
-\usepackage[left=3cm,right=1cm,top=2cm,bottom=2cm] {geometry}
+\usepackage[left=2cm,right=1cm,top=2cm,bottom=2cm] {geometry}
 \linespread {1.5}
 \usepackage {indentfirst}
 \setlength {\parindent}{1cm}
@@ -47,9 +47,12 @@
 	\clearpage
 	\input {chapter3.tex}
 	\clearpage
-	\input {chapter4.tex}
+           \input {chapter4.tex}
+	\clearpage
+           \input {chapter5.tex}
 	\clearpage
 	\renewcommand{\refname}{Список использованных источников}
+           \addcontentsline{toc}{section}{Список использованных источников}
 	\bibliography{sources}
 	\bibliographystyle{ieeetr}
 \end {document}
