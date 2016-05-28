@@ -6,7 +6,7 @@
 \usepackage[utf8] {inputenc}
 \usepackage[russian] {babel}
 \usepackage[left=2cm,right=1cm,top=2cm,bottom=2cm] {geometry}
-\linespread {1.5}
+\linespread {1.3}
 \usepackage {indentfirst}
 \setlength {\parindent}{1cm}
 \usepackage {amsmath}
@@ -14,6 +14,7 @@
 \usepackage {ccaption}
 \usepackage {topcapt}
 \usepackage {listings}
+\usepackage {float}
 \lstdefinestyle{masm}{
 	belowcaptionskip=1\baselineskip,
 	frame=L,
@@ -22,9 +23,6 @@
 	basicstyle=\footnotesize\ttfamily
 }
 \captiondelim{. }
-\title {Название работы}
-\date {2016-01-01}
-\author {by myself!}
 
 \tolerance=1
 \emergencystretch=\maxdimen
@@ -33,7 +31,7 @@
 
 \begin {document}
 	\pagenumbering {gobble}
-	\maketitle
+	\input {title.tex}
 	\clearpage
 	\pagenumbering {arabic}
 	\setcounter{page}{2}
