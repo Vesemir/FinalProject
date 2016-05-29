@@ -28,10 +28,7 @@ def build_scoring_matrix(int size,
     for symrow in range(size + 1):
         for symcol in range(size + 1):
             if not symcol or not symrow:
-                if symcol in MUTED_CALLS or symrow in MUTED_CALLS:
-                    matr[symrow,symcol] = 0
-                else:
-                    matr[symrow,symcol] = dash_score
+                matr[symrow,symcol] = dash_score
             elif symcol == symrow:
                 if symcol in MUTED_CALLS:
                     matr[symrow,symcol] = 0# or 0
