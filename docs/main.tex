@@ -11,10 +11,15 @@
 \setlength {\parindent}{1cm}
 \usepackage {amsmath}
 \usepackage {graphicx}
-\usepackage {ccaption}
-\usepackage {topcapt}
+
 \usepackage {listings}
-\usepackage {float}
+
+\AtBeginDocument{
+    \renewcommand{\figurename}{Рисунок}
+}
+\RequirePackage {caption}
+\DeclareCaptionLabelSeparator{defffis} { -- }
+\captionsetup {justification=centering,labelsep=defffis}
 \lstdefinestyle{masm}{
 	belowcaptionskip=1\baselineskip,
 	frame=L,
@@ -22,8 +27,7 @@
 	language=[x86masm]Assembler,
 	basicstyle=\footnotesize\ttfamily
 }
-\captiondelim{. }
-
+\usepackage {float}
 \tolerance=1
 \emergencystretch=\maxdimen
 \hyphenpenalty=10000
