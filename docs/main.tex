@@ -11,15 +11,16 @@
 \setlength {\parindent}{1cm}
 \usepackage {amsmath}
 \usepackage {graphicx}
-
+\usepackage {gensymb}
 \usepackage {listings}
+\usepackage {cite}
 
 \AtBeginDocument{
     \renewcommand{\figurename}{Рисунок}
 }
 \RequirePackage {caption}
 \DeclareCaptionLabelSeparator{defffis} { -- }
-\captionsetup {justification=centering,labelsep=defffis}
+\captionsetup {justification=justified,labelsep=defffis}
 \lstdefinestyle{masm}{
 	belowcaptionskip=1\baselineskip,
 	frame=L,
@@ -28,6 +29,8 @@
 	basicstyle=\footnotesize\ttfamily
 }
 \usepackage {float}
+\floatstyle{plaintop}
+\restylefloat{table}
 \tolerance=1
 \emergencystretch=\maxdimen
 \hyphenpenalty=10000
