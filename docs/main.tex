@@ -1,0 +1,67 @@
+\documentclass[a4paper,14pt]{extarticle}
+
+\makeatletter
+\renewcommand\@biblabel[1]{#1}
+\makeatother
+\usepackage[utf8] {inputenc}
+\usepackage[russian] {babel}
+\usepackage[left=2cm,right=1cm,top=2cm,bottom=2cm] {geometry}
+\linespread {1.3}
+\usepackage {indentfirst}
+\setlength {\parindent}{1cm}
+\usepackage {amsmath, amssymb}
+\usepackage {graphicx}
+\usepackage {gensymb}
+\usepackage {listings}
+\usepackage {cite}
+\usepackage {longtable}
+\usepackage {array}
+
+\AtBeginDocument{
+    \renewcommand{\figurename}{Рисунок}
+}
+\RequirePackage {caption}
+\DeclareCaptionLabelSeparator{defffis} { -- }
+\captionsetup {justification=justified,labelsep=defffis}
+\lstdefinestyle{masm}{
+	belowcaptionskip=1\baselineskip,
+	frame=L,
+	xleftmargin=\parindent,
+	language=[x86masm]Assembler,
+	basicstyle=\footnotesize\ttfamily
+}
+\usepackage {float}
+\floatstyle{plaintop}
+\restylefloat{table}
+\tolerance=1
+\emergencystretch=\maxdimen
+\hyphenpenalty=10000
+\hbadness=10000
+
+\begin {document}
+	\pagenumbering {gobble}
+	\input {title.tex}
+	\clearpage
+	\pagenumbering {arabic}
+	\setcounter{page}{2}
+	\tableofcontents
+	\clearpage
+	\input {introduction.tex}
+	\clearpage
+	\input {chapter1.tex}
+	\clearpage
+	\input {chapter2.tex}
+	\clearpage
+	\input {chapter3.tex}
+	\clearpage
+           \input {chapter4.tex}
+	\clearpage
+           \input {chapter5.tex}
+	\clearpage
+	\input {conclusion.tex}
+	\clearpage
+	\renewcommand{\refname}{Список использованных источников}
+           \addcontentsline{toc}{section}{Список использованных источников}
+	\bibliography{sources}
+           \bibliographystyle{gost2008}
+\end {document}

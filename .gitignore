@@ -1,6 +1,11 @@
 __pycache__
 *.pyc
-~$*.docx
+*.pdf
+*.toc
+*.aux
+*.bbl
+*.blg
+*.synctex.gz
 ~$*vsd
 Virus*.zip
 *.log
