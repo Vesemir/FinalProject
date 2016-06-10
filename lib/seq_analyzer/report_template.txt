@@ -1,0 +1,16 @@
+<html>
+<head>%s</head>
+<style type="text/css">
+    #scrolly{
+        width: 1250px;
+        height: 900px;
+        overflow: auto;
+        overflow-y:auto;
+        margin: 0 auto;
+        white-space: nowrap
+        }
+</style>
+
+<div id='scrolly'>%s
+</div>
+</html>

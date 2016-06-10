@@ -5,10 +5,9 @@ import glob
 import h5py
 
 from itertools import combinations, product
-from collections import deque
+from collections import deque, defaultdict
 
-
-
+import webbrowser
 import time
 
 CURDIR = os.path.dirname(os.path.abspath(__file__))
@@ -45,6 +44,19 @@ def important_numbers(dummy, mapping=None, revmapping=None):
     return imp_numbers, mapping_size, muted
 
 IMPORTANT_CALLS, MAPPING_SIZE, MUTED_CALLS = important_numbers(None)
+
+
+def report_match(first_seq, second_seq, name1, name2, score, target=None):
+    lb = '<BR>' if target == 'browser' else '\r\n'
+    template = "*" * 20 + lb + 'SCORE : {}' + lb + '{}' +\
+               ':' + lb + '{}' + lb + '{} :' + lb +' {}'
+    return template.format(
+              score,
+              name1,
+              sequence_to_list(first_seq),
+              name2,
+              sequence_to_list(second_seq)
+              )
 
 
 def build_scoring_matrix(size,
@@ -150,78 +162,114 @@ def search_samples(seq_1, seq_2, score_matrix=None, size=None):
     return 0
 
 
-def report_match(first_seq, second_seq, name1, name2, score):
-    return "*" * 20 +\
-          "\nSCORE : {}\n\n{} :\n {}\n{} :\n {}\n".format(
-              score,
-              name1,
-              sequence_to_list(first_seq),
-              name2,
-              sequence_to_list(second_seq)
-              )
+def output_reports(reports, name):
+    with open('report_template.txt') as inp:
+        template = inp.read()
+    report = template % ('Report for top %d' % len(reports), '<BR>'.join(reports))
+    new = 2
+    report_name = 'report_{}.html'.format(name)
+    with open(report_name, 'w') as outp:
+        outp.write(report)
+    webbrowser.open(report_name, new=new) 
 
-    
-@profiler.do_profile
-def test_match():
+
+def find_slow_match(kbase, samples, scor_mat, single_match=None, TOP=3):
+    reports = deque('' for _ in range(TOP))
+    if single_match:
+        sample_names = [single_match]
+    else:
+        sample_names = list(samples.keys())            
+    for idx, test_sample in enumerate(sample_names):
+        max_score = -10000
+        avg_score = similar_num = 0
+        test_seq = samples[test_sample]
+        print("[!] Searching {} \n".format(test_sample))
+        temp_time = time.perf_counter()
+        for jdx, trained_seq in enumerate(kbase.values()):
+            if jdx % 1000 == 0:
+                print("[!] Compared with number {}".format(jdx))
+            train, test = np.asarray(trained_seq), np.asarray(test_seq)
+            found_match = search_samples(train, test,
+                                         score_matrix=scor_mat)
+            if found_match:
+                score, first_seq, second_seq = found_match
+                avg_score += score
+                similar_num += 1
+                if score > max_score:
+                    max_score = score
+                    report = report_match(first_seq, second_seq,
+                                 trained_seq.name, test_seq.name,
+                                          score,
+                                          target='browser')
+                    reports.pop()
+                    reports.appendleft(report)                    
+        print('[!] Total average score on found sequences is {}'.format(avg_score / similar_num))
+        print("[!] Comparison took {} seconds and finished on {} comparison".format(time.perf_counter() - temp_time, jdx))
+        print('[!] Opening browser, for your report and convenience!')
+        output_reports(reports, test_sample)        
+
+
+def trivial_heur(test_seq):
+    n_unique = np.unique(test_seq).size
+    if n_unique < 3:
+        print('[!] Very low total number of unique calls : {}'.format(n_unique))
+    if test_seq.size < 10:
+        print('[!] Very short total length of call sequence: {}'.format(test_seq.size))
+        
+
+def find_fast_match(kbase, samples, scor_mat, THRESHOLD=160):
+    sample_names = list(samples.keys())
+    popular_kbase = defaultdict(int)
+    found = nonfound = 0
+    for idx, test_sample in enumerate(sample_names):
+        test_seq = samples[test_sample]
+        FOUND = False
+        print("[!] Searching {} \n".format(test_sample))
+        temp_time = time.perf_counter()
+        for jdx, trained_seq in enumerate(kbase.values()):
+            if jdx % 1000 == 0:
+                print("[!] Number {}".format(jdx))            
+            train, test = np.asarray(trained_seq), np.asarray(test_seq)
+            found_match = search_samples(train, test,
+                                         score_matrix=scor_mat)
+            if found_match:
+                score, first_seq, second_seq = found_match
+                if score > THRESHOLD:
+                    print("[!] With high confidence of {} it's a virus !".format(score))
+                    report = report_match(first_seq, second_seq,
+                                 trained_seq.name, test_seq.name,
+                                          score)
+                    print(report)
+                    FOUND = True
+                    break
+        else:
+            print('[!] No match reaching threshold found')
+            nonfound += 1
+        print("[!] Comparison took {} seconds and finished on {} comparison".format(time.perf_counter() - temp_time, jdx))
+        if FOUND:
+            found += 1
+            popular_kbase[trained_seq.name] += 1
+    print('[!] Totally found {} and non found {} samples'.format(found, nonfound))
+    print(popular_kbase)
+
+            
+#@profiler.do_profile
+def test_match(strategy='SLOW', match_one=None):
     with h5py.File(KBASE_FILE, 'r', driver='core') as h5file:
         kbase = h5file['knowledgebase']
         samples = h5file['test_samples']
-        sampless = list(samples.keys())
-        #first_sample = sample_names[237]# was 37
-        
-        temp_time = started = time.perf_counter()
-        
         scor_mat = build_sm(MAPPING_SIZE, MUTED_CALLS, IMPORTANT_CALLS)
-        for idx, test_sample_name in enumerate(sampless[237:]):
-            print("[!] Searching {} \n".format(test_sample_name))
-            cycle_counter = 0
-            sample_whole_score = 0
-            similar_count = 0
-            avg_cur = 0
-            max_cur = 0
-            score = 0
-            partial_report = ''
-            for trained_sample_name in kbase:
-                if cycle_counter % 1000 == 0:
-                    print("[!] Number {}".format(cycle_counter))
-                trained_sample = kbase[trained_sample_name]
-                test_sample = samples[test_sample_name]
-                train, test = np.asarray(trained_sample), np.asarray(test_sample)
-                size = min(map(len, (train, test)))
-                found_match = search_samples(train, test,
-                                             score_matrix=scor_mat)
-                
-                if found_match:
-                    score = found_match[0]
-                    first_seq, second_seq = found_match[1], found_match[2]
-                    #report_match(first_seq, second_seq,
-                    #             trained_sample.name, test_sample.name,
-                    #             score)
-                    if max_cur < score:
-                        max_cur = score
-                        partial_report = report_match(
-                            first_seq, second_seq,
-                            trained_sample.name, test_sample.name,
-                            score)
-                    sample_whole_score += score
-                    similar_count += 1
-                    avg_cur = sample_whole_score / similar_count
-                    if score > 300:#5 * size:
-                        print("[!] With high confidence of {} it's a virus !".format(score))
-                        report = report_match(first_seq, second_seq,
-                                     trained_sample.name, test_sample.name,
-                                              score)
-                        print(report)
-                        break
-                cycle_counter += 1
-            else:
-                print('[!] No match reaching threshold found;\nTotal average score on found sequences is {}, \n max match: {}'.format(avg_cur, partial_report))
-            print("[!] Comparison took {} seconds and finished on {} comparison".format(time.perf_counter() - temp_time, cycle_counter))
-            assert False, 'no'
-            temp_time = time.perf_counter()
+                        
+        started = time.perf_counter()
+        if strategy == 'SLOW':
+            find_slow_match(kbase, samples, scor_mat,
+                            single_match=match_one,
+                            TOP=10)
+        elif strategy == 'FAST':
+            find_fast_match(kbase, samples, scor_mat)        
         
-        print("[!] Run took {} seconds and finished on {} comparison".format(time.perf_counter() - started, cycle_counter))
+        print("[!] Run took {} seconds".format(time.perf_counter() - started))
 
 
 if __name__ == '__main__':
-    test_match()
+    test_match('SLOW', match_one='f2d89c29fdcf0a3509350c3751564b5d')
