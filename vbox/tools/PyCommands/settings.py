@@ -74,21 +74,21 @@ F_MOVFLAGS = {0x2: 'MOVEFILE_COPY_ALLOWED',
               0x1: 'MOVEFILE_REPLACE_EXISTING',
               0x8: 'MOVEFILE_WRITE_THROUGH'}
 
-CLSIDS = {'{D20EA4E1-3957-11d2-A40B-0C5020524153}': 'Administrative Tools',
-          '{ED7BA470-8E54-465E-825C-99712043E01C}': 'All Tasks',
-          '{21EC2020-3AEA-1069-A2DD-08002b30309d}': 'Control Panel',
+CLSIDS = {'{D20EA4E1-3957-11d2-A40B-0C5020524153}': 'Administrative_Tools',
+          '{ED7BA470-8E54-465E-825C-99712043E01C}': 'All_Tasks',
+          '{21EC2020-3AEA-1069-A2DD-08002b30309d}': 'Control_Panel',
           '{241D7C96-F8BF-4F85-B01F-E2B043341A4B}': 'Connections',
           '{D20EA4E1-3957-11d2-A40B-0C5020524152}': 'Fonts',
           '{20D04FE0-3AEA-1069-A2D8-08002B30309D}': 'Computer',
           '{450D8FBA-AD25-11D0-98A8-0800361B1103}': 'Documents',
           '{ff393560-c2a7-11cf-bff4-444553540000}': 'History',
-          '{208d2c60-3aea-1069-a2d7-08002b30309d}': 'Network Places',
+          '{208d2c60-3aea-1069-a2d7-08002b30309d}': 'Network_Places',
           '{15eae92e-f17a-4431-9f28-805e482dafd4}': 'NetInstall',
-          '{2227A280-3AEA-1069-A2DE-08002B30309D}': 'Printers and Faxes',
-          '{7be9d83c-a729-4d97-b5a7-1b7313c39e0a}': 'Programs Folder',
-          '{645FF040-5081-101B-9F08-00AA002F954E}': 'Recycle Bin',
-          '{48e7caab-b918-4e58-a94d-505519c795dc}': 'Start Menu',
-          '{D6277990-4C6A-11CF-8D87-00AA0060F5BF}': 'Scheduled Tasks',
+          '{2227A280-3AEA-1069-A2DE-08002B30309D}': 'Printers_and_Faxes',
+          '{7be9d83c-a729-4d97-b5a7-1b7313c39e0a}': 'Programs_Folder',
+          '{645FF040-5081-101B-9F08-00AA002F954E}': 'Recycle_Bin',
+          '{48e7caab-b918-4e58-a94d-505519c795dc}': 'Start_Menu',
+          '{D6277990-4C6A-11CF-8D87-00AA0060F5BF}': 'Scheduled_Tasks',
           '{1D2680C9-0E2A-469d-B787-065558BC7D43}': 'Sert',
           '{78F3955E-3B90-4184-BD14-5397C15F1EFC}': 'WEI',
           '{4026492F-2F69-46B8-B9BF-5654FC07E423}': 'Brandmauer'}
@@ -98,7 +98,7 @@ REG_BRANCHES = {r'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersio
                 r'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy': 'fw_config',
                 r'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options': 'imagefile',
                 r'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services': 'services',
-                r'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon': 'userinit',
+                r'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon': 'userinit',
                 r'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run': 'autorun',
                 r'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run': 'autorun',
                 r'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunOnce': 'autorun',
@@ -108,9 +108,9 @@ REG_BRANCHES = {r'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersio
                 r'HKEY_CURRENT_USER\Software\Microsoft\SystemCertificates': 'certificates',
                 r'HKEY_LOCAL_MACHINE\Software\Microsoft\SystemCertificates': 'certificates'}
 
-DANGEROUS_LIBS = {'sfc_os.dll': 'Windows File Protection',
-                  'pstorec.dll': 'Protected storage',
-                  'ntoskrnl.exe': 'SSDT hook'}
+DANGEROUS_LIBS = {'sfc_os.dll': 'Windows_File_Protection',
+                  'pstorec.dll': 'Protected_storage',
+                  'ntoskrnl.exe': 'SSDT_hook'}
 
 
           

@@ -18,17 +18,10 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from settings import LOGS_DIR, F_FILEOPEN, F_DESACCESS, F_SHAREMODE
 from settings import F_CLSCTX, F_FLANDATTRS, F_MOVFLAGS
 
-IMPORTANT_FUNCTIONS = (
-    'loadlibrary', 'getprocaddress', 'findfirstfile', 'regopenkey', 'findresource',
-    'createdirectory', 'createsemaphore', 'messagebox', 'shellexecute', 'comparestring',
-    'strcmp', 'strcpy', 'registerwindowsmessage', 'lcmapstring', 'strlen', 'openfile',
-    'createfile'
-    )
+
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 FUNCTION = re.compile(r'At 0x[0-9a-f]{8} in (?P<libname>\w+) \(base \+ 0x[0-9a-f]{8}\) : (?P<funcaddr>0x[0-9a-f]{8}) \(ptr to (?P<funcname>[a-zA-Z0-9.]+)\)')
 
-
-valid = re.compile(r'(?P<funcname>\w+)\n(?P<funcdesc>[A-Z].+?\.)\n', re.DOTALL)
 
 #ripped off from mona
 arch = 32
@@ -96,7 +89,7 @@ def procGetxAT(dbg, mode='iat'):
     thisxat = {}
     entriesfound = 0
 
-    keywordstring = 'kernel32.*,user32.*,shell32.*,advapi32.*'# gdi32.*,samcli.*,apphelp.*,
+    keywordstring = 'kernel32.*,user32.*,shell32.*,advapi32.*,wsock32.*,oleaut32.*'# gdi32.*,samcli.*,apphelp.*,
 
     keywords = keywordstring.split(",")
 
@@ -205,18 +198,6 @@ def get_enabled_flags(fdict, flag):
     return '|'.join(res)
 
 
-def important_functions():
-    with open(os.path.join(CURDIR, 'API_USAGE.txt')) as inp:
-        wholedict = dict()
-        whole = inp.read()
-        for match in valid.finditer(whole):
-            that = match.groupdict()
-            that['funcdesc'] = that['funcdesc'].replace('\n', ' ')
-            wholedict[that['funcname'].lower()] = that['funcdesc']
-            #print('|{funcname}| """{funcdesc}"""'.format(**that))
-    return wholedict
-
-
 def function_dict(path):
     f_dict = dict()
     with open(path) as inp:
@@ -277,21 +258,27 @@ class CallGetter(LogBpHook):
             p_libname = self.imm.readLong(regs['ESP'] + 4)
             if p_libname:
                 extra['libname'] = read_str(p_libname)
-        if 'getprocaddress' == bp_decoded.split('.')[1]:
+                self.imm.runTillRet()
+                module = self.imm.getModule(extra['libname'].lower())
+                if module:
+                    if not module.isAnalysed():
+                        self.imm.analyseCode(module.getCodebase())
+        elif 'getprocaddress' == bp_decoded.split('.')[1]:
             p_funcname = self.imm.readLong(regs['ESP'] + 8)
-            fname = read_str(p_funcname)
+            fname = read_str(p_funcname).lower()
             if not fname.isalpha():
                 fname = '<ordinal>: {}'.format(p_funcname % 0x10000)
             extra['funcname'] = fname
-            self.imm.runTillRet()
-            newregs = self.imm.getRegs()
-            faddr = newregs['EAX']
-            if faddr and '.' in fname: # according to MSDN returns address of fucntion
-                self.add("%08x" % faddr, faddr) # doc said I know what I'm doing
-                self.fdict[faddr] = fname.lower()
-                self.imm.log("Added bp on {} for {}".format(faddr, fname))
-                #self.imm.setLoggingBreakpoint(faddr) # seems it is already added by .add
-        if 'movefile' in bp_decoded:
+            #self.imm.runTillRet()
+            #newregs = self.imm.getRegs()
+            #faddr = newregs['EAX']
+            #if faddr and fname.isalpha() and not 'rtl' in fname: # according to MSDN returns address of fucntion
+                #self.fdict[faddr] = fname.lower()
+                #functions_hooker = CallGetter(self.fdict, self.logfile)
+                #functions_hooker.add(fname, faddr) # doc said I know what I'm doing
+                #self.imm.log("Added bp on {} for {}".format(faddr, fname))
+        
+        elif 'movefile' in bp_decoded:
             p_src = self.imm.readLong(regs['ESP'] + 4)
             p_dest = self.imm.readLong(regs['ESP'] + 8)
             extra['src'] = read_str(p_src)
@@ -302,40 +289,36 @@ class CallGetter(LogBpHook):
                 extra['flags'] = get_enabled_flags(F_MOVFLAGS, movflags)
             if 'progress' in bp_decoded:
                 movflags = self.imm.readLong(regs['ESP'] + 0x14)
-                extra['flags'] = get_enabled_flags(F_MOVFLAGS, movflags)
-                                   
-                                   
-            
-            
-        if 'findfirstfile' in bp_decoded:
+                extra['flags'] = get_enabled_flags(F_MOVFLAGS, movflags)           
+        elif 'findfirstfile' in bp_decoded:
             p_filename = self.imm.readLong(regs['ESP'] + 4)
             extra['filename'] = read_str(p_filename)
-        if 'regopenkey' in bp_decoded:
+        elif 'regopenkey' in bp_decoded:
             p_regkey = self.imm.readLong(regs['ESP'] + 8)
             if p_regkey:
                 extra['regkey'] = read_str(p_regkey)
-        if 'regsetvalue' in bp_decoded:
+        elif 'regsetvalue' in bp_decoded:
             p_subkey = self.imm.readLong(regs['ESP'] + 8)
             if p_subkey:
-                extra['regkey'] = read_str(p_regkey)
+                extra['regkey'] = read_str(p_subkey)
             p_value = self.imm.readLong(regs['ESP'] + 0x10)
             extra['value'] = read_str(p_value)
-        if 'regcreatekey' in bp_decoded:
+        elif 'regcreatekey' in bp_decoded:
             p_regkey = self.imm.readLong(regs['ESP'] + 8)
             extra['regkey'] = read_str(p_regkey)
-        if 'findresource' in bp_decoded:
+        elif 'findresource' in bp_decoded:
             p_resource = self.imm.readLong(regs['ESP'] + 8)
             try: #  Microsoft says it can be some macros MAKEINTRESOURCESTRING
                 extra['resource'] = read_str(p_resource)
             except: #  instead of string, dunno what will happen here
                 extra['resource'] = p_resource
-        if 'cocreateinstance' in bp_decoded:
+        elif 'cocreateinstance' in bp_decoded:
             clsctx = self.imm.readLong(regs['ESP'] + 0x0c)
             extra['clsctx'] = get_enabled_flags(F_CLSCTX, clsctx)
-        if 'createdirectory' in bp_decoded:
+        elif 'createdirectory' in bp_decoded:
             p_dirname = self.imm.readLong(regs['ESP'] + 4)
             extra['dirname'] = read_str(p_dirname)
-        if 'httpsendrequest' in bp_decoded:
+        elif 'httpsendrequest' in bp_decoded:
             l_headers = self.imm.readLong(regs['ESP'] + 0x0c)
             if l_headers != 0:
                 const = 50 if l_headers == -1 else l_headers
@@ -346,17 +329,17 @@ class CallGetter(LogBpHook):
                 const = 50 if l_opt == -1 else l_opt
                 p_opt = self.imm.readLong(regs['ESP'] + 0x08)
                 extra['optional'] = read_str(p_opt)
-        if 'createsemaphore' in bp_decoded:
+        elif 'createsemaphore' in bp_decoded:
             p_semaphore = self.imm.readLong(regs['ESP'] + 0x10)
             extra['name'] = read_str(p_semaphore)
-        if 'messagebox' in bp_decoded:
+        elif 'messagebox' in bp_decoded:
             p_text = self.imm.readLong(regs['ESP'] + 8)
             p_caption = self.imm.readLong(regs['ESP'] + 0x0c)
             if p_text:
                 extra['text'] = read_str(p_text)
             if p_caption:
                 extra['caption'] = read_str(p_caption)
-        if 'shellexecute' in bp_decoded:
+        elif 'shellexecute' in bp_decoded:
             p_operation = self.imm.readLong(regs['ESP'] + 8)
             p_file = self.imm.readLong(regs['ESP'] + 0x0c)
             p_params = self.imm.readLong(regs['ESP'] + 0x10)
@@ -368,47 +351,47 @@ class CallGetter(LogBpHook):
             if p_directory:
                 extra['directory'] = read_str(p_directory)
             extra['file'] = read_str(p_file)
-        if 'comparestring' in bp_decoded:
+        elif 'comparestring' in bp_decoded:
             p_string1 = self.imm.readLong(regs['ESP'] + 0x0c)
             p_string2 = self.imm.readLong(regs['ESP'] + 0x14)
             if p_string1:
                 extra['string1'] = read_str(p_string1)
             if p_string2:
                 extra['string2'] = read_str(p_string2)
-        if 'strcmp' in bp_decoded:
+        elif 'strcmp' in bp_decoded:
             p_string1 = self.imm.readLong(regs['ESP'] + 4)
             p_string2 = self.imm.readLong(regs['ESP'] + 8)
             if p_string1:
                 extra['string1'] = read_str(p_string1)
             if p_string2:
                 extra['string2'] = read_str(p_string2)
-        if 'strcpy' in bp_decoded:
+        elif 'strcpy' in bp_decoded:
             p_srcstring = self.imm.readLong(regs['ESP'] + 8)
             if p_srcstring:
                 extra['src_string'] = read_str(p_srcstring)
-        if 'registerwindowsmessage' in bp_decoded:
+        elif 'registerwindowsmessage' in bp_decoded:
             p_message = self.imm.readLong(regs['ESP'] + 4)
             if p_message:
                 extra['message'] = read_str(p_message)
-        if 'lcmapstring' in bp_decoded:
+        elif 'lcmapstring' in bp_decoded:
             p_srcstring = self.imm.readLong(regs['ESP'] + 0x0c)
             if p_srcstring:
                 extra['src_string'] = read_str(p_srcstring)
-        if 'strlen' in bp_decoded:
+        elif 'strlen' in bp_decoded:
             p_string = self.imm.readLong(regs['ESP'] + 4)
             if p_string: # there are probably null bytes in strlenW gotta check
                 extra['string'] = read_str(p_string)
-        if 'querydirectoryfile' in bp_decoded:
+        elif 'querydirectoryfile' in bp_decoded:
             p_filename = self.imm.readLong(regs['ESP'] + 0x28)
             if p_string: # there are probably null bytes in strlenW gotta check
                 extra['filename'] = read_str(p_filename)
-        if 'openfile' in bp_decoded:
+        elif 'openfile' in bp_decoded:
             p_filename = self.imm.readLong(regs['ESP'] + 4)
             if p_filename:
                 extra['filename'] = read_str(p_filename)
             style = self.imm.readLong(regs['ESP'] + 0x0C)
             extra['ustyle'] = get_enabled_flags(F_FILEOPEN, style)
-        if 'createfile' in bp_decoded:
+        elif 'createfile' in bp_decoded:
             p_filename = self.imm.readLong(regs['ESP'] + 4)
             if p_filename:
                 extra['filename'] = read_str(p_filename)
@@ -418,7 +401,7 @@ class CallGetter(LogBpHook):
             extra['share_mode'] = get_enabled_flags(F_SHAREMODE, share_mode)
             attrs = self.imm.readLong(regs['ESP'] + 0x18)
             extra['flags_and_attrs'] = get_enabled_flags(F_FLANDATTRS, attrs)
-                
+                    
     def save_test_case(self, pos, arg1, more):
         message = "*****\n"
         message += "IN : %s\n" % more['callname']
@@ -439,6 +422,12 @@ class CallGetter(LogBpHook):
 def main(args):
     imm = Debugger()
     hide(imm)
+    #ntdll = imm.getModule('ntdll.dll')
+    #kernel32 = imm.getModule('kernel32.dll')
+    #imm.analyseCode(ntdll.getCodebase())
+    #if kernel32:
+    #    imm.analyseCode(kernel32.getCodebase())
+    
     setconfig()
     procGetxAT(imm)
     logspath = args[0]
@@ -447,12 +436,8 @@ def main(args):
     #loaddll_hook = ExportHook(functions_dict, logspath) # doesn't work 
     #loaddll_hook.add("Generic DLL handler")
     functions_hooker = CallGetter(functions_dict, logspath)
-    imp_func = important_functions()
     dump = ''
     for address, funcname in functions_dict.items():
-        if 'CmdLine' in funcname:
-            print(address, funcname)
-        #if funcname.split('.')[1] in imp_func:
         #if not 'rtl' in funcname:
-        functions_hooker.add( "%08x" % address, address)
+        functions_hooker.add(funcname, address)
     return "[*] API calls hooker enabled!"
