@@ -1,10 +1,13 @@
 import glob
 import os
+import sys
 import shutil
 
+CURDIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.join(CURDIR, os.pardir, os.pardir))
 
-from PyCommands.settings import SAMPLE_PATH, VIRUS_SHARE, MAL_SHARE
-from PyCommands.zipper import zipin
+from vbox.tools.PyCommands.settings import SAMPLE_PATH, VIRUS_SHARE, MAL_SHARE
+from vbox.tools.PyCommands.zipper import zipin
 
 def filterPE(pfile):
     with open(pfile, 'rb') as candy:

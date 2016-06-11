@@ -1,5 +1,6 @@
 import vboxapi
 import os
+import sys
 import glob
 import time
 import threading
@@ -19,15 +20,18 @@ from contextlib import contextmanager
 #7*. Download INetSIM logs -> but why ?.... # should check if 7 works for Linux
 #8. Turn off both hosts. / -2 + 
 ##
-from drawer import draw_samples
-from PyCommands.settings import LOGS_DIR as VMLOGS_DIR
-from PyCommands.settings import IMMUNITY_PATH
-from PyCommands.settings import SAMPLE_PATH
+CURDIR = os.path.dirname(os.path.abspath(__file__))
 
-from PyCommands.settings import DEPLOY_DIR
+sys.path.append(os.path.join(CURDIR, os.pardir, os.pardir))
+from vbox.tools.drawer import draw_samples
+from vbox.tools.PyCommands.settings import LOGS_DIR as VMLOGS_DIR
+from vbox.tools.PyCommands.settings import IMMUNITY_PATH
+from vbox.tools.PyCommands.settings import SAMPLE_PATH
+
+from vbox.tools.PyCommands.settings import DEPLOY_DIR
 CHUNKSIZE = 4096
 
-CURDIR = os.path.dirname(os.path.abspath(__file__))
+
 PYTHON = r'C:/Python27/python.exe'
 
 WINVM = 'TempOS'
@@ -52,7 +56,7 @@ GETAPI = 'getapilog.py'
 PRINT_LOCK = threading.Semaphore(1)
 AGENT_POOL = queue.Queue()
 
-oldprint = __builtins__.print
+
 
 
 vbmanager = vboxapi.VirtualBoxManager(None, None)
@@ -78,13 +82,6 @@ def newprint(val, level='debug', *args, **kwargs):
     with safeprint(PRINT_LOCK):
         if LEVELS.get(level) >= LEVELS.get(LOG_LEVEL):
             oldprint(val, *args, **kwargs)
-
-
-__builtins__.print = newprint
-
-
-assert os.path.isdir(SAMPLE_PATH)
-assert os.path.isdir(LOGS_PATH)
 
 
 def startVM(name=LINUXVM, style='headless', snapshot='Working INetSIM'):
@@ -397,4 +394,8 @@ def run_cycled(agents_num=10, samples_num=65536):
 
 
 if __name__ == '__main__':
+    assert os.path.isdir(SAMPLE_PATH)
+    assert os.path.isdir(LOGS_PATH)
+    oldprint = __builtins__.print
+    __builtins__.print = newprint
     run_cycled()

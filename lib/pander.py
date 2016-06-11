@@ -302,8 +302,9 @@ def fileparse(target):
                              DataFrame(reslist)
                              ))
             else:
-                assert False, 'LOOK HERE : {}'.format(samplename.upper())
                 print("[-] Could not be parsed {}".format(samplename))
+                assert False, 'LOOK HERE : {}'.format(samplename.upper())
+                
 
 
 def raw_files(logdir, fileparser):

@@ -9,14 +9,13 @@ from collections import deque, defaultdict
 
 import webbrowser
 import time
+from . import compute_alignment_matrix as align
+from . import build_scoring_matrix as build_sm
+from . import profiler
 
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(CURDIR, os.pardir))
-import scoring.scoring.compare_samples
-from scoring.scoring.compare_samples import compute_alignment_matrix as align
-from scoring.scoring.compare_samples import build_scoring_matrix as build_sm
-from profiling import profiler
-from pander import sequence_to_list, important_functions, cached_mapping, KBASE_FILE
+from . import sequence_to_list, important_functions, cached_mapping, KBASE_FILE
 SEQ_LOGS = os.path.join(CURDIR, 'datas')
 
 SCORE_MATCH = 10
