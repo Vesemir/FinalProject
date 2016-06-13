@@ -13,7 +13,8 @@ from collections import deque, OrderedDict
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
 
 from vbox.tools.PyCommands.settings import RAW_DIR, CLSIDS, \
-     REG_BRANCHES, DANGEROUS_LIBS, F_MOVFLAGS, F_CLSCTX
+     REG_BRANCHES, DANGEROUS_LIBS, F_MOVFLAGS, F_CLSCTX, MUTED_NAMES
+
 
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 PARSE_LOG = os.path.join(CURDIR, 'parse_log.log')
@@ -86,10 +87,6 @@ manycalls = lambda x: [tuplicate(each.strip('\n')) for each in
                                 re.compile(r'\*\*\*\*\*(.+?)\*\*\*\*\*',
                                            re.DOTALL).findall(x)
                                 ]
-
-
-
-
 
 
 REGISTRY_MAPPING = {'HKLM': 'HKEY_LOCAL_MACHINE',
@@ -227,7 +224,8 @@ def sequence_to_list(src, mapping=None, revmapping=None):
     combo = 1
     for each in array:
         cur_call = revmapping.get(each) if each != 0 else 'Skipped'
-        
+        if cur_call in MUTED_NAMES:
+            cur_call = 'Muted'
         if prev_call != cur_call:
             result += ' -> ' + prev_call if combo == 1 else ' -> %dx ' % combo + prev_call
             combo = 1
@@ -343,10 +341,16 @@ def process_all_logs(target_group='knowledgebase', source=os.path.join(RAW_DIR, 
             mapping = json.load(inp, object_pairs_hook=OrderedDict)
             print("[!] Loaded.")
     with h5py.File(KBASE_FILE, 'a') as h5file:
-        kbase = h5file.create_group(target_group)
+        groups = list(h5file)
+        if target_group not in groups:
+            print('[!] Group %s isn\'t present in file, creating it ...' % target_group)
+            kbase = h5file.create_group(target_group)
+        else:
+            print('[!] Group %s is already present in file, using it ...' % target_group)
+            kbase = h5file[target_group]
         raw_files(source, fileparse(sink(kbase, mapping)))
         
-    print("[!] Dumping renewed of size {} mapping back to file".format(len(mapping)))
+    print("[!] Dumping renewed mapping of size {} mapping back to file".format(len(mapping)))
     with open(MAPPING, 'w') as outp:
         json.dump(mapping, outp, indent=4)
     

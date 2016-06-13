@@ -48,7 +48,6 @@ KIT_DIR = 'PyCommands'
 KIT = ('getapilog.py',
        'logginghook.py',
        'settings.py',
-       'API_USAGE.txt',
        'zipper.py',
        )
 GETAPI = 'getapilog.py'
@@ -112,15 +111,15 @@ def copytoolstoVM(name=WINVM,
             copyfiletoVM(name=name,
                          src_file=toolpath, dest_dir=dest_dir,
                          username=username, password=password)
-    print('[+] Done.', level='trace')
+    print('[+] Done.', 'trace')
 
 
 def deploytoolstoVM(dest_dir='C:/foo'):
-    print('[!] Deploying tools ...', level='trace')
+    print('[!] Deploying tools ...', 'trace')
     for packet in glob.glob(os.path.join(DEPLOY_DIR, '*')):
         if not 'tar.gz' in packet:
             copyfiletoVM(src_file=packet, dest_dir=dest_dir)
-    print('[+] Done.', level='trace')
+    print('[+] Done.', 'trace')
 
 
 def copyfiletoVM(name=WINVM,
@@ -156,7 +155,7 @@ def copyfiletoVM(name=WINVM,
                 chunk = inp.read(CHUNKSIZE)
         pFile.close()
         print('[+] Succesfully copied from host {} to {}\' {}'.format(
-            src_file, name, dest_file), level='trace'
+            src_file, name, dest_file), 'trace'
               )
     except Exception as e:
         print("[-] Couldn't create specified file {} on {} machine, {}".format(
@@ -223,13 +222,13 @@ def runprocessonVM(name=WINVM,
     if args != '':
         argarray = ['', args['command'], args['file']]
     print("[!] Running command :  {} {}".format(dest_file, ' '.join(argarray)),
-          level='trace')
+          'trace')
     machine = VBOX.findMachine(name)
     session = vbmanager.openMachineSession(machine)
     guest = session.console.guest
     mysession = guest.createSession(username, password, '', session)
     print("[!] Protocol version of VBService is {}".format(
-        mysession.protocolVersion), level='trace')
+        mysession.protocolVersion), 'trace')
     response = mysession.WaitFor(CONST.GuestSessionWaitForFlag_Start, 0)
     try:
         if response != 1:
@@ -243,14 +242,14 @@ def runprocessonVM(name=WINVM,
             timeoutMS)
         process.WaitFor(CONST.ProcessWaitForFlag_Start, 0)
         print('[+] Succesfully started {} with PID {}'.format(
-            dest_file, process.PID), level='trace'
+            dest_file, process.PID), 'trace'
               )
         res = process.WaitFor(CONST.ProcessWaitForFlag_Terminate, timeoutMS)
         if res not in (CONST.ProcessWaitResult_Terminate,
                        CONST.ProcessWaitResult_Timeout):
             raise Exception("[-] Unknown status {}".format(res))
         print('[+] Succesfully terminated process {}'.format(
-            dest_file), level='trace'
+            dest_file), 'trace'
               )
     except Exception as e:
         print("[-] Couldn't start specified file {} on {} machine, {}".format(
@@ -331,8 +330,8 @@ def run_sample(samplepath, adict=_agent('TempOS_1', 'One', '1', 'masquedmore'),
                        password=password)
         #os.rename(samplepath, os.path.splitext(samplepath, [0]) + '.done')
         
-    except:
-        pass
+    except Exception as e:
+        print('!!!!! ' + str(e))
     finally:
         freezeVM(name=agent)
         AGENT_POOL.put(adict)
@@ -351,6 +350,8 @@ def dirty_hacks():
             
             
 def run_cycled(agents_num=10, samples_num=65536, sample_dir=SAMPLE_PATH):
+    oldprint = __builtins__['print']
+    __builtins__['print'] = newprint
     draw_samples(src='MalShare', num=samples_num)
     start_time = time.time()
     print('[!] Started run at {}'.format(time.ctime()))
@@ -398,6 +399,4 @@ def run_cycled(agents_num=10, samples_num=65536, sample_dir=SAMPLE_PATH):
 if __name__ == '__main__':
     assert os.path.isdir(SAMPLE_PATH)
     assert os.path.isdir(LOGS_PATH)
-    oldprint = __builtins__.print
-    __builtins__.print = newprint
     run_cycled()

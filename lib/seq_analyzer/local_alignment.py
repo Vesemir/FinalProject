@@ -16,19 +16,12 @@ from . import profiler
 CURDIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(CURDIR, os.pardir))
 from . import sequence_to_list, important_functions, cached_mapping, KBASE_FILE
+from vbox.tools.PyCommands.settings import MUTED_NAMES
 SEQ_LOGS = os.path.join(CURDIR, 'datas')
 
 SCORE_MATCH = 10
 SCORE_EMPTY = -6
 SCORE_DIFFERENT = -2
-
-MUTED_NAMES = [
-    "kernel32.getstringtype", "kernel32.getlasterror", "kernel32.setlasterror", "kernel32.isdbcsleadbyte",
-    "kernel32.regkrngetglobalstate", "kernel32.interlockedexchange", "kernel32.interlockedincrement",
-    "kernel32.interlockeddecrement", "kernel32.interlockedcompareexchange",
-    "kernel32.initializecriticalsectionandspincount", "kernel32.heapfree",
-    "kernel32.interlockedexchangeadd"
-    ]
 
 
 @cached_mapping
@@ -162,19 +155,19 @@ def search_samples(seq_1, seq_2, score_matrix=None, size=None):
 
 
 def output_reports(reports, name):
-    with open('report_template.txt') as inp:
+    with open(os.path.join(CURDIR, 'report_template.txt')) as inp:
         template = inp.read()
     report = template % ('Report for top %d' % len(reports), '<BR>'.join(reports))
     new = 2
-    report_name = 'report_{}.html'.format(name)
+    report_name = os.path.join(CURDIR, 'report_{}.html'.format(name))
     with open(report_name, 'w') as outp:
         outp.write(report)
     webbrowser.open(report_name, new=new) 
 
 
-def find_slow_match(kbase, samples, scor_mat, single_match=None, TOP=3):
+def find_slow_match(kbase, samples, scor_mat, single_match=None, TOP=None):
     reports = deque('' for _ in range(TOP))
-    all_samples = list(samples.keys())
+    all_samples = list(samples)
     if single_match:
         if not single_match in all_samples:
             print('[-] Specified sample %s isn\'t present in "test" database '
@@ -222,7 +215,7 @@ def trivial_heur(test_seq):
         
 
 def find_fast_match(kbase, samples, scor_mat, THRESHOLD=160):
-    sample_names = list(samples.keys())
+    sample_names = list(samples)
     popular_kbase = defaultdict(int)
     found = nonfound = 0
     for idx, test_sample in enumerate(sample_names):
@@ -260,10 +253,10 @@ def find_fast_match(kbase, samples, scor_mat, THRESHOLD=160):
 #@profiler.do_profile
 def test_match(strategy='SLOW', match_one=None, test_group='test_samples'):
     with h5py.File(KBASE_FILE, 'r', driver='core') as h5file:
-        present_groups = list(kbase.keys())
+        present_groups = list(h5file)
         for each in ('knowledgebase', test_group):
             if each not in present_groups:
-                print('[-] %s group isn\'t present in knowledgebase file!')
+                print('[-] %s group isn\'t present in knowledgebase file!' % each)
                 sys.exit(1)
         kbase = h5file['knowledgebase']
         samples = h5file[test_group]
@@ -273,7 +266,7 @@ def test_match(strategy='SLOW', match_one=None, test_group='test_samples'):
         if strategy == 'SLOW':
             find_slow_match(kbase, samples, scor_mat,
                             single_match=match_one,
-                            TOP=10)
+                            TOP=3)
         elif strategy == 'FAST':
             find_fast_match(kbase, samples, scor_mat)        
         

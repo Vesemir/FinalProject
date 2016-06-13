@@ -9,6 +9,14 @@ VIRUS_SHARE = os.path.join(SAMPLE_PATH, 'VirusShare')
 MAL_SHARE = os.path.join(SAMPLE_PATH, 'MalShare')
 VBOXMANAGE = r"C:\Program Files\Oracle\VirtualBox\VBoxManage.exe"
 
+MUTED_NAMES = [
+    "kernel32.getstringtype", "kernel32.getlasterror", "kernel32.setlasterror", "kernel32.isdbcsleadbyte",
+    "kernel32.regkrngetglobalstate", "kernel32.interlockedexchange", "kernel32.interlockedincrement",
+    "kernel32.interlockeddecrement", "kernel32.interlockedcompareexchange",
+    "kernel32.initializecriticalsectionandspincount", "kernel32.heapfree",
+    "kernel32.interlockedexchangeadd"
+    ]
+
 F_FILEOPEN = {0x00000800: 'OF_CANCEL',
               0x00001000: 'OF_CREATE',
               0x00000200: 'OF_DELETE',

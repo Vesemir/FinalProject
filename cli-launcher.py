@@ -13,16 +13,16 @@ def main():
                                      description='Command line interface for '
                                      'invoking scan, parse, and analyze procedures'
                                      ' of current module.')
-    parser.add_argument('--action', default='analyze_exe_sample',
+    parser.add_argument('-a', '--action', default='analyze_exe_sample',
                         help='Specify actions, one of: \n'
                         'analyze_exe_sample - default value, performs sample '
                         'scan, logs parsing and slow_comparison with kbase\n'
-                        'analyze_seq - performs slow_comparison of ready npy '
+                        'analyze_seq - performs slow_comparison of ready '
                         'sequence with kbase and outputs html report\n\n'
                         'parse_log - performs parsing of ready log file, produced '
                         'by scan_exe, outputs npy which can later be used by '
                         'analyze_seq\n\n'
-                        'scan_exe - performs launch in vbox and logs collection\n\n'
+                        'scan_sample - performs launch in vbox and logs collection\n\n'
                         'add_to_kbase - performs scanning, parsing and add resulting'
                         ' sequence to current knowledge base\n\n'
                         'batch_scan - performs batch parallel scan of all samples in '
@@ -31,14 +31,15 @@ def main():
                         'outputs to hdf5 file "test" directory\n\n'
                         'batch_analyze - performs fast_comparison of all sequences '
                         'in target directory with knowledge base')
-    parser.add_argument('--target', required=True,
+    parser.add_argument('-t', '--target', required=True,
                         help='Select the target for specified action')
     args = parser.parse_args()
     action, target = args.action, args.target
     if action == 'analyze_seq':
+        test_group = 'test'
         print('[!] Option analyze_seq was selected, processing specified sequence '
-              'in test directory.')
-        test_match(strategy='SLOW', test_group='test', single_match=target)
+              'in "%s" directory.' % test_group)
+        test_match(strategy='SLOW', test_group=test_group, match_one=target)
     elif action == 'parse_log':
         print('[!] Option parse_log was selected, processing specified log '
               'outputting to "test" directory of current hdf5 file')
@@ -50,7 +51,7 @@ def main():
                   ' named apicalls.log, if you renamed, please rename it back!')
             sys.exit(1)
         process_all_logs(source=target, target_group='test')
-    elif action == 'scan_exe':
+    elif action == 'scan_sample':
         print('[!] Option scan_exe was selected, collecting logs for specified '
               'sample zipped executable file.')
         if not os.path.isfile(target):
@@ -64,7 +65,7 @@ def main():
             print('[-] Unfortunately, scanning produced no logs, terminating...')
             sys.exit(1)
         else:
-            print('[+] Logs present in vbox/logs/%s directory.' % logs_dir)
+            print('[+] Logs present in %s file.' % os.path.abspath(target_logfile))
     elif action == 'add_to_kbase':
         print('[!] Option add_to_kbase was selected, processing specified sample '
               'zipped executable file, parsing and adding result sequence into '
@@ -79,8 +80,8 @@ def main():
         if not os.path.isfile(target_logfile):
             print('[-] Unfortunately, scanning produced no logs, terminating...')
             sys.exit(1)
-        process_all_logs(source=target_logfile, target_group='knowledgebase_fake')
-        print('[+] Succesfully added %s sample to knowledgebase.' % target)
+        process_all_logs(source=target_logfile, target_group='knowledgebase')
+        print('[+] Succesfully added %s sequence to knowledgebase.' % target)
     elif action == 'batch_scan':
         print('[!] Option batch_scan selected, running scan of all samples in '
               'specified samples directory and outputting result into '
@@ -120,7 +121,10 @@ def main():
         process_all_logs(source=target_logfile, target_group='test')
         test_match(strategy='SLOW',
                    test_group='test',
-                   single_match=target_name)
+                   match_one=target_name)
+    else:
+        print('[-] Unknown action "%s" specified, terminating...' % action)
+        sys.exit(1)
 
 
 if __name__ == '__main__':
