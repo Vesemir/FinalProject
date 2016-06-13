@@ -278,14 +278,16 @@ def freezeVM(name='INetSim'):
     print('[+] Machine {} stopped'.format(name))
 
 
-def run_sample(samplepath, adict,
+def run_sample(samplepath, adict=_agent('TempOS_1', 'One', '1', 'masquedmore'),
                timeout=WORK_TIMEOUT, work_dir='C:/workdir'):
+    proc_name = os.path.basename(samplepath)
+    sample_log = os.path.join(LOGS_PATH,
+                              os.path.splitext(proc_name)[0])
     try:
         
         agent, login, password, snapshot = \
                adict['name'], adict['login'], adict['password'], adict['snapshot']
-        
-        proc_name = os.path.basename(samplepath)
+                
         startVM(name=agent, style='headless', snapshot=snapshot)
         copytoolstoVM(name=agent,
                       dest_dir=work_dir,
@@ -315,8 +317,7 @@ def run_sample(samplepath, adict,
         cur_search = os.path.join(VMLOGS_DIR,
                                os.path.splitext(proc_name)[0],
                                'iatsearch.txt')
-        sample_log = os.path.join(LOGS_PATH,
-                                  os.path.splitext(proc_name)[0])
+        
         if not os.path.isdir(sample_log):
             os.makedirs(sample_log)
         done = readfilefromVM(name=agent,
@@ -335,6 +336,7 @@ def run_sample(samplepath, adict,
     finally:
         freezeVM(name=agent)
         AGENT_POOL.put(adict)
+    return os.path.join(sample_log, 'apicalls.log')
 
         
 def dirty_hacks():
@@ -348,7 +350,7 @@ def dirty_hacks():
             
             
             
-def run_cycled(agents_num=10, samples_num=65536):
+def run_cycled(agents_num=10, samples_num=65536, sample_dir=SAMPLE_PATH):
     draw_samples(src='MalShare', num=samples_num)
     start_time = time.time()
     print('[!] Started run at {}'.format(time.ctime()))
@@ -357,7 +359,7 @@ def run_cycled(agents_num=10, samples_num=65536):
             for idx in range(1, agents_num + 1)]
     for agent in pool:
         AGENT_POOL.put(agent)
-    job_pool = glob.glob(os.path.join(SAMPLE_PATH, '*.zip'))
+    job_pool = glob.glob(os.path.join(sample_dir, '*.zip'))
     WORK_SIZE = len(job_pool)
     thread_pool = []
     while job_pool:

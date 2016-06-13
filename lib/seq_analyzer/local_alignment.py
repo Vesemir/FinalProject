@@ -174,10 +174,15 @@ def output_reports(reports, name):
 
 def find_slow_match(kbase, samples, scor_mat, single_match=None, TOP=3):
     reports = deque('' for _ in range(TOP))
+    all_samples = list(samples.keys())
     if single_match:
+        if not single_match in all_samples:
+            print('[-] Specified sample %s isn\'t present in "test" database '
+                  'file, terminating launch...')
+            sys.exit(1)
         sample_names = [single_match]
     else:
-        sample_names = list(samples.keys())            
+        sample_names = all_samples
     for idx, test_sample in enumerate(sample_names):
         max_score = -10000
         avg_score = similar_num = 0
@@ -253,10 +258,15 @@ def find_fast_match(kbase, samples, scor_mat, THRESHOLD=160):
 
             
 #@profiler.do_profile
-def test_match(strategy='SLOW', match_one=None):
+def test_match(strategy='SLOW', match_one=None, test_group='test_samples'):
     with h5py.File(KBASE_FILE, 'r', driver='core') as h5file:
+        present_groups = list(kbase.keys())
+        for each in ('knowledgebase', test_group):
+            if each not in present_groups:
+                print('[-] %s group isn\'t present in knowledgebase file!')
+                sys.exit(1)
         kbase = h5file['knowledgebase']
-        samples = h5file['test_samples']
+        samples = h5file[test_group]
         scor_mat = build_sm(MAPPING_SIZE, MUTED_CALLS, IMPORTANT_CALLS)
                         
         started = time.perf_counter()

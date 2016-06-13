@@ -307,10 +307,20 @@ def fileparse(target):
                 
 
 
-def raw_files(logdir, fileparser):
+def raw_files(logtarget, fileparser):
     ctr = 0
-    for sample in glob.glob(os.path.join(logdir, '*')):
-        logfil = os.path.join(sample, 'apicalls.log')
+    if os.path.isdir(logtarget):
+        target = [os.path.join(each, 'apicalls.log') for each in
+                               glob.glob(os.path.join(logdir, '*'))]
+        print('[!] Got directory as arguments, processing all present apicalls.logs'
+              ' files in its subdirectories.')
+    elif os.path.isfile(logtarget):
+        print('[!] Got file as argument, processing it...')
+        target = [logtarget]
+    else:
+        print('[-] Specified target isn\'t file or directory, terminating...')
+        sys.exit(1)
+    for logfil in target:
         if ctr % 1000 == 0:
             print('[!] A total of {} logfiles processed'.format(ctr))
         if os.path.isfile(logfil):
@@ -319,10 +329,11 @@ def raw_files(logdir, fileparser):
                 fileparser.send(logfil)
             except Exception as e:
                 logging.debug("[!] Can't parse : {}, skipping. Reason : {}".format(sample, str(e)))
+                    
     print('[!] A total of {} logfiles present'.format(ctr))
 
 
-def process_all_logs(target_group='knowledgebase', src_dir=os.path.join(RAW_DIR, 'train')):
+def process_all_logs(target_group='knowledgebase', source=os.path.join(RAW_DIR, 'train')):
     if not os.path.isfile(MAPPING):
         print("[-] No mapping found, creating new one ...")
         mapping = OrderedDict()
@@ -333,7 +344,7 @@ def process_all_logs(target_group='knowledgebase', src_dir=os.path.join(RAW_DIR,
             print("[!] Loaded.")
     with h5py.File(KBASE_FILE, 'a') as h5file:
         kbase = h5file.create_group(target_group)
-        raw_files(src_dir, fileparse(sink(kbase, mapping)))
+        raw_files(source, fileparse(sink(kbase, mapping)))
         
     print("[!] Dumping renewed of size {} mapping back to file".format(len(mapping)))
     with open(MAPPING, 'w') as outp:
@@ -342,7 +353,7 @@ def process_all_logs(target_group='knowledgebase', src_dir=os.path.join(RAW_DIR,
 
 
 if __name__ == '__main__':
-    process_all_logs(target_group='test_samples', src_dir=RAW_DIR)
+    process_all_logs(target_group='test_samples', source=RAW_DIR)
     process_all_logs()
     pass
     
