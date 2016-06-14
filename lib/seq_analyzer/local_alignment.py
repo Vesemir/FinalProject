@@ -12,12 +12,13 @@ import time
 from . import compute_alignment_matrix as align
 from . import build_scoring_matrix as build_sm
 from . import profiler
-
-CURDIR = os.path.dirname(os.path.abspath(__file__))
+if hasattr(sys, 'frozen'):
+    CURDIR = os.path.dirname(sys.executable)
+else:
+    CURDIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(CURDIR, os.pardir))
 from . import sequence_to_list, important_functions, cached_mapping, KBASE_FILE
 from vbox.tools.PyCommands.settings import MUTED_NAMES
-SEQ_LOGS = os.path.join(CURDIR, 'datas')
 
 SCORE_MATCH = 10
 SCORE_EMPTY = -6

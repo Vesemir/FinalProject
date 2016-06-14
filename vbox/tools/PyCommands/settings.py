@@ -1,10 +1,18 @@
 import os
-CURDIR = os.path.dirname(os.path.abspath(__file__))
+import sys
+if hasattr(sys, 'frozen'):
+    CURDIR = os.path.dirname(sys.executable)
+    SAMPLE_PATH = os.path.join(CURDIR, 'samples')
+    DEPLOY_DIR = os.path.join(CURDIR, 'deploy')
+    RAW_DIR = os.path.join(CURDIR, 'logs')
+else:
+    CURDIR = os.path.dirname(os.path.abspath(__file__))
+    SAMPLE_PATH = os.path.join(CURDIR, os.pardir, os.pardir, 'samples')
+    DEPLOY_DIR = os.path.join(CURDIR, os.pardir, os.pardir, 'deploy')
+    RAW_DIR = os.path.join(CURDIR, os.pardir, os.pardir, 'logs')
 LOGS_DIR = "C:/workdir/logs/"
 IMMUNITY_PATH = r"C:\Program Files\Immunity Inc\Immunity Debugger\ImmunityDebugger.exe"
-SAMPLE_PATH = os.path.join(CURDIR, os.pardir, os.pardir, 'samples')
-DEPLOY_DIR = os.path.join(CURDIR, os.pardir, os.pardir, 'deploy')
-RAW_DIR = os.path.join(CURDIR, os.pardir, os.pardir, 'logs')
+
 VIRUS_SHARE = os.path.join(SAMPLE_PATH, 'VirusShare')
 MAL_SHARE = os.path.join(SAMPLE_PATH, 'MalShare')
 VBOXMANAGE = r"C:\Program Files\Oracle\VirtualBox\VBoxManage.exe"

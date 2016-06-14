@@ -6,7 +6,7 @@ import os
 import sys
 import glob
 import funcparserlib.parser as p
-import logging
+#import logging
 import json
 import re
 from collections import deque, OrderedDict
@@ -15,14 +15,16 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pard
 from vbox.tools.PyCommands.settings import RAW_DIR, CLSIDS, \
      REG_BRANCHES, DANGEROUS_LIBS, F_MOVFLAGS, F_CLSCTX, MUTED_NAMES
 
-
-CURDIR = os.path.dirname(os.path.abspath(__file__))
+if not hasattr(sys, 'frozen'):
+    CURDIR = os.path.dirname(os.path.abspath(__file__))
+else:
+    CURDIR = os.path.dirname(sys.executable)
 PARSE_LOG = os.path.join(CURDIR, 'parse_log.log')
 MAPPING = os.path.join(CURDIR, 'funcmapping.json')
 SVM_LOGS = os.path.join(CURDIR, 'svm_analyzer', 'datas')
 SEQ_LOGS = os.path.join(CURDIR, 'seq_analyzer', 'datas')
 KBASE_FILE = os.path.join(CURDIR, 'seq_analyzer', 'datas', 'knowledgebase.hdf5')
-logging.basicConfig(filename=PARSE_LOG, level=logging.DEBUG)
+#logging.basicConfig(filename=PARSE_LOG, level=logging.DEBUG)
 
 for each in (SVM_LOGS, SEQ_LOGS):
     if not os.path.isdir(each):
@@ -237,7 +239,6 @@ def sequence_to_list(src, mapping=None, revmapping=None):
 
 
 def dframe_to_sequence(dframe, filename='sample', knowledge=None, mapping=None):
-    #print('Working with \n', dframe)
     current = []
     
     for _, series in dframe.iterrows():
@@ -249,17 +250,14 @@ def dframe_to_sequence(dframe, filename='sample', knowledge=None, mapping=None):
         query_mapping = mapping.get(seq_name)
         
         if query_mapping:
-            #print("[!] Using cached value of {}".format(record))
             current.append(query_mapping)
         else:
             print("[!] Got new func : {}".format(seq_name))
             curlen = len(mapping) + 1
             current.append(curlen)
             mapping[seq_name] = curlen
-    #print(mapping)
-    
+        
     results = np.asarray(current)
-    #print('[!] Saving {}\'s results to file'.format(filename))
     knowledge.create_dataset(filename, data=results)
    
             
@@ -274,8 +272,7 @@ def coroutine(func):
 def calc_agg(name, lis):
     grouped = lis.groupby('call').size()
     grouped.to_pickle(os.path.join(SVM_LOGS, name))
-    #print('[+] Pickled SVM log for {}'.format(name))
-
+    
 
 @coroutine
 def sink(kbase, mapping):
@@ -326,7 +323,8 @@ def raw_files(logtarget, fileparser):
             try:
                 fileparser.send(logfil)
             except Exception as e:
-                logging.debug("[!] Can't parse : {}, skipping. Reason : {}".format(sample, str(e)))
+                print("[!] Can't parse : {}, skipping. Reason : {}".format(logfil, str(e)))
+                #logging.debug("[!] Can't parse : {}, skipping. Reason : {}".format(sample, str(e)))
                     
     print('[!] A total of {} logfiles present'.format(ctr))
 
