@@ -223,7 +223,7 @@ def sequence_to_list(src, mapping=None, revmapping=None):
     prev_call = ''
     combo = 1
     for each in array:
-        cur_call = revmapping.get(each) if each != 0 else 'Skipped'
+        cur_call = revmapping.get(each, 'Unknown') if each != 0 else 'Skipped'
         if cur_call in MUTED_NAMES:
             cur_call = 'Muted'
         if prev_call != cur_call:

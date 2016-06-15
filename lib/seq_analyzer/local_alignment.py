@@ -3,9 +3,10 @@ import os
 import sys
 import glob
 import h5py
+import json
 
 from itertools import combinations, product
-from collections import deque, defaultdict
+from collections import deque, defaultdict, OrderedDict
 
 import webbrowser
 import time
@@ -17,6 +18,7 @@ CURDIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(CURDIR, os.pardir))
 from . import sequence_to_list, important_functions, cached_mapping, KBASE_FILE
 from vbox.tools.PyCommands.settings import MUTED_NAMES
+from lib.pander import MAPPING
 SEQ_LOGS = os.path.join(CURDIR, 'datas')
 
 SCORE_MATCH = 10
@@ -24,24 +26,14 @@ SCORE_EMPTY = -6
 SCORE_DIFFERENT = -2
 
 
-@cached_mapping
-def important_numbers(dummy, mapping=None, revmapping=None):
-    imp_functions = important_functions()
-    imp_numbers = np.array([item for key, item in mapping.items() if
-                   any(func in key for func in imp_functions)],
-                           dtype=np.int32)
-    mapping_size = max(revmapping)
-    muted = np.array([mapping.get(each) for each in MUTED_NAMES],
-                     dtype=np.int32)
-    return imp_numbers, mapping_size, muted
 
-IMPORTANT_CALLS, MAPPING_SIZE, MUTED_CALLS = important_numbers(None)
 
 
 def report_match(first_seq, second_seq, name1, name2, score, target=None):
     lb = '<BR>' if target == 'browser' else '\r\n'
-    template = "*" * 20 + lb + 'SCORE : {}' + lb + '{}' +\
-               ':' + lb + '{}' + lb + '{} :' + lb +' {}'
+    template = "*" * 20 + lb + '<u>SCORE : <b><font color="#FF0000">{}</font></b></u>' +\
+               2 * (lb + '<font color="#EE9400">{}</font>' + ':' + lb +\
+               '<font color="#0059FF">{}</font>')
     return template.format(
               score,
               name1,
@@ -107,7 +99,7 @@ def compute_alignment_matrix(seq_x, seq_y, scoring_matrix):
 
 
 def compute_local_alignment(seq_x, seq_y, scoring_matrix, alignment_matrix):
-    idx, jdx = np.unravel_index(alignment_matrix.argmax(), alignment_matrix.shape)   
+    idx, jdx = np.unravel_index(alignment_matrix.argmax(), alignment_matrix.shape)
     xslash, yslash = deque(), deque()
     total = 0
     while idx and jdx:
@@ -252,6 +244,18 @@ def find_fast_match(kbase, samples, scor_mat, THRESHOLD=160):
             
 #@profiler.do_profile
 def test_match(strategy='SLOW', match_one=None, test_group='test_samples'):
+    @cached_mapping
+    def important_numbers(dummy, mapping=None, revmapping=None):
+        imp_functions = important_functions()
+        imp_numbers = np.array([item for key, item in mapping.items() if
+                                any(func in key for func in imp_functions)],
+                               dtype=np.int32)
+        mapping_size = max(revmapping)
+        muted = np.array([mapping.get(each) for each in MUTED_NAMES],
+                         dtype=np.int32)
+        return imp_numbers, mapping_size, muted
+
+    IMPORTANT_CALLS, MAPPING_SIZE, MUTED_CALLS = important_numbers(None)
     with h5py.File(KBASE_FILE, 'r', driver='core') as h5file:
         present_groups = list(h5file)
         for each in ('knowledgebase', test_group):
