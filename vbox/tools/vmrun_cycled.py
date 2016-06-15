@@ -20,7 +20,11 @@ from contextlib import contextmanager
 #7*. Download INetSIM logs -> but why ?.... # should check if 7 works for Linux
 #8. Turn off both hosts. / -2 + 
 ##
-CURDIR = os.path.dirname(os.path.abspath(__file__))
+
+if not hasattr(sys, 'frozen'):
+    CURDIR = os.path.dirname(os.path.abspath(__file__))
+else:
+    CURDIR = os.path.dirname(sys.executable)
 
 sys.path.append(os.path.join(CURDIR, os.pardir, os.pardir))
 from vbox.tools.drawer import draw_samples
@@ -43,7 +47,7 @@ WORK_TIMEOUT = 120000
 
 IMMUNITY_DIR = os.path.join(os.path.dirname(IMMUNITY_PATH), 'PyCommands')
 MONA = os.path.join(IMMUNITY_DIR, 'mona.py')
-LOGS_PATH = os.path.join(CURDIR, os.pardir, 'logs')
+LOGS_PATH = VMLOGS_DIR
 KIT_DIR = 'PyCommands'
 KIT = ('getapilog.py',
        'logginghook.py',
