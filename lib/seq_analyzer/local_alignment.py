@@ -144,10 +144,11 @@ def search_samples(seq_1, seq_2, score_matrix=None, size=None):
     return 0
 
 
-def output_reports(reports, name):
+def output_reports(reports, name, avg=None):
     with open(os.path.join(CURDIR, 'report_template.txt')) as inp:
         template = inp.read()
-    report = template % ('Report for top %d' % len(reports), '<BR>'.join(reports))
+    report = template % ('Report for top %d with average score of %f' % (len(reports), avg)
+                         '<BR>'.join(reports))
     new = 2
     report_name = os.path.join(CURDIR, 'report_{}.html'.format(name))
     with open(report_name, 'w') as outp:
@@ -193,7 +194,7 @@ def find_slow_match(kbase, samples, scor_mat, single_match=None, TOP=None):
         print('[!] Total average score on found sequences is {}'.format(avg_score / similar_num))
         print("[!] Comparison took {} seconds and finished on {} comparison".format(time.perf_counter() - temp_time, jdx))
         print('[!] Opening browser, for your report and convenience!')
-        output_reports(reports, test_sample)        
+        output_reports(reports, test_sample, avg=avg_score)        
 
 
 def trivial_heur(test_seq):
