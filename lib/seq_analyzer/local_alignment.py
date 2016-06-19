@@ -147,7 +147,7 @@ def search_samples(seq_1, seq_2, score_matrix=None, size=None):
 def output_reports(reports, name, avg=None):
     with open(os.path.join(CURDIR, 'report_template.txt')) as inp:
         template = inp.read()
-    report = template % ('Report for top %d with average score of %f' % (len(reports), avg)
+    report = template % ('Report for top %d with average score of %f' % (len(reports), avg),
                          '<BR>'.join(reports))
     new = 2
     report_name = os.path.join(CURDIR, 'report_{}.html'.format(name))
